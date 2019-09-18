@@ -25,7 +25,7 @@ afr_module_sources(
 
 afr_module_include_dirs(
     ${AFR_CURRENT_MODULE}
-    PUBLIC 
+    PUBLIC
         "${inc_dir}"
         "$<${AFR_IS_TESTING}:${src_dir}>"
     PRIVATE
@@ -37,7 +37,7 @@ afr_module_dependencies(
     PUBLIC
         AFR::common
     PRIVATE
-        3rdparty::http-parser
+        3rdparty::http_parser
 )
 
 # HTTPS Client test
@@ -63,5 +63,5 @@ afr_module_dependencies(
     ${AFR_CURRENT_MODULE}
     INTERFACE
         AFR::https
-        3rdparty::http-parser
+        3rdparty::http_parser
 )
