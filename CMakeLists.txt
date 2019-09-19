@@ -58,6 +58,11 @@ add_subdirectory("tests")
 afr_status("=========================Resolving dependencies==========================")
 afr_resolve_dependencies()
 
+target_compile_definitions(afr_kernel
+	INTERFACE
+	AFR_USE_GLOBAL_ESP_MUTEX
+	)
+
 # -------------------------------------------------------------------------------------------------
 # Summary
 # -------------------------------------------------------------------------------------------------

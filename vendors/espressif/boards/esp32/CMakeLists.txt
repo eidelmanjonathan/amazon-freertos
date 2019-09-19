@@ -76,6 +76,14 @@ target_include_directories(
         "$<$<NOT:${AFR_METADATA_MODE}>:${CMAKE_BINARY_DIR}/config>"
 )
 
+# Add a global ESP-IDF Portmux for use by libraries in portENTER_CRITICAL
+# This is enabled for all non-kernel libraries by defining the preprocessor symbol
+# AFR_USE_GLOBL_ESP_MUTEX in the top-level makefile
+target_sources(
+	AFR::kernel::mcu_port
+	INTERFACE "${afr_ports_dir}/smp_mutex/global_smp_mutex.c"
+)
+
 # WiFi
 afr_mcu_port(wifi)
 target_link_libraries(
@@ -165,10 +173,9 @@ target_link_libraries(
         AFR::pkcs11
 )
 
+
 # ESP-IDF version of FreeRTOS kernel requires these flags.
 # Instead, we want only the kernel to inherit these
-#   AFR::freertos <--PRIVATE-- kernel 
-#   AFR::kernel::mcu_port <--PRIVATE-- kernel 
 target_compile_definitions(
 	AFR::kernel::mcu_port
 	INTERFACE
