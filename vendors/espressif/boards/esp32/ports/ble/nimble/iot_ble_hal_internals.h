@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+* FreeRTOS
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -52,6 +52,7 @@ extern BTProperties_t xProperties;
 extern BTGattServerCallbacks_t xGattServerCb;
 extern uint16_t usGattConnHandle;
 extern uint16_t gattOffset;
+extern bool xSemLock;
 
 const void * prvBTGetGattServerInterface();
 const void * prvGetLeAdapter();
@@ -67,5 +68,7 @@ uint16_t prvGattFromDevHandle( uint16_t handle );
 BTStatus_t prvSetIOs( BTIOtypes_t xPropertyIO );
 BTStatus_t prvToggleBondableFlag( bool bEnable );
 BTStatus_t prvToggleSecureConnectionOnlyMode( bool bEnable );
+void prvGattGetSemaphore();
+void prvGattGiveSemaphore();
 
 #endif /* ifndef _AWS_BLE_INTERNALS_H_ */

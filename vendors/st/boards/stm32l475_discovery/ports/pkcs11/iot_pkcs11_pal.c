@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS PKCS #11 PAL for STM32L4 Discovery kit IoT node V1.0.3
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS PKCS #11 PAL for STM32L4 Discovery kit IoT node V1.0.3
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,7 +26,7 @@
 
 /**
  * @file iot_pkcs11_pal.c
- * @brief Amazon FreeRTOS device specific helper functions for
+ * @brief FreeRTOS device specific helper functions for
  * PKCS#11 implementation based on mbedTLS.  This
  * file deviates from the FreeRTOS style standard for some function names and
  * data types in order to maintain compliance with the PKCS#11 standard.
@@ -299,6 +299,11 @@ P11KeyConfig_t P11KeyConfig __attribute__( ( section( "UNINIT_FIXED_LOC" ) ) );
 #endif /* ifdef USE_OFFLOAD_SSL */
 /*-----------------------------------------------------------*/
 
+CK_RV PKCS11_PAL_Initialize( void )
+{
+    return CKR_OK;
+}
+
 /**
  * @brief Saves an object in non-volatile storage.
  *
@@ -312,8 +317,8 @@ P11KeyConfig_t P11KeyConfig __attribute__( ( section( "UNINIT_FIXED_LOC" ) ) );
  * eInvalidHandle = 0 if unsuccessful.
  */
 CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
-                                        uint8_t * pucData,
-                                        uint32_t ulDataSize )
+                                        CK_BYTE_PTR pucData,
+                                        CK_ULONG ulDataSize )
 
 {
     CK_OBJECT_HANDLE xHandle = eInvalidHandle;
@@ -506,7 +511,7 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
  * Port-specific object handle retrieval.
  *
  *
- * @param[in] pLabel         Pointer to the label of the object
+ * @param[in] pxLabel         Pointer to the label of the object
  *                           who's handle should be found.
  * @param[in] usLength       The length of the label, in bytes.
  *
@@ -514,22 +519,22 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
  * Returns eInvalidHandle if unsuccessful.
  */
 
-CK_OBJECT_HANDLE PKCS11_PAL_FindObject( uint8_t * pLabel,
-                                        uint8_t usLength )
+CK_OBJECT_HANDLE PKCS11_PAL_FindObject( CK_BYTE_PTR pxLabel,
+                                        CK_ULONG usLength )
 {
     CK_OBJECT_HANDLE xHandle = eInvalidHandle;
 
-    if( ( 0 == memcmp( pLabel, pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS, usLength ) ) &&
+    if( ( 0 == memcmp( pxLabel, pkcs11configLABEL_DEVICE_CERTIFICATE_FOR_TLS, usLength ) ) &&
         ( ( P11KeyConfig.ulDeviceCertificateMark & pkcs11OBJECT_PRESENT_MASK ) == pkcs11OBJECT_PRESENT_MAGIC ) )
     {
         xHandle = eAwsDeviceCertificate;
     }
-    else if( ( 0 == memcmp( pLabel, pkcs11configLABEL_DEVICE_PRIVATE_KEY_FOR_TLS, usLength ) ) &&
+    else if( ( 0 == memcmp( pxLabel, pkcs11configLABEL_DEVICE_PRIVATE_KEY_FOR_TLS, usLength ) ) &&
              ( ( P11KeyConfig.ulDeviceKeyMark & pkcs11OBJECT_PRESENT_MASK ) == pkcs11OBJECT_PRESENT_MAGIC ) )
     {
         xHandle = eAwsDevicePrivateKey;
     }
-    else if( ( 0 == memcmp( pLabel, pkcs11configLABEL_CODE_VERIFICATION_KEY, usLength ) ) &&
+    else if( ( 0 == memcmp( pxLabel, pkcs11configLABEL_CODE_VERIFICATION_KEY, usLength ) ) &&
              ( ( P11KeyConfig.ulCodeSignKeyMark & pkcs11OBJECT_PRESENT_MASK ) == pkcs11OBJECT_PRESENT_MAGIC ) )
     {
         xHandle = eAwsCodeSigningKey;
@@ -563,9 +568,9 @@ CK_OBJECT_HANDLE PKCS11_PAL_FindObject( uint8_t * pLabel,
  */
 
 CK_RV PKCS11_PAL_GetObjectValue( CK_OBJECT_HANDLE xHandle,
-                                 uint8_t ** ppucData,
-                                 uint32_t * pulDataSize,
-                                 CK_BBOOL * pIsPrivate )
+                                      CK_BYTE_PTR * ppucData,
+                                      CK_ULONG_PTR pulDataSize,
+                                      CK_BBOOL * pIsPrivate )
 
 {
     CK_RV ulReturn = CKR_OBJECT_HANDLE_INVALID;
@@ -644,8 +649,8 @@ CK_RV PKCS11_PAL_GetObjectValue( CK_OBJECT_HANDLE xHandle,
  * @param[in] ulDataSize    The length of the buffer to free.
  *                          (*pulDataSize from PKCS11_PAL_GetObjectValue())
  */
-void PKCS11_PAL_GetObjectValueCleanup( uint8_t * pucData,
-                                       uint32_t ulDataSize )
+void PKCS11_PAL_GetObjectValueCleanup( CK_BYTE_PTR pucData,
+                                       CK_ULONG ulDataSize )
 {
     /* Unused parameters. */
     ( void ) pucData;

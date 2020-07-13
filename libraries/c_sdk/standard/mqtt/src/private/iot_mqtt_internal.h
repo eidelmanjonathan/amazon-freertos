@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS MQTT V2.1.0
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS MQTT V2.1.1
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -271,6 +271,7 @@ typedef struct _mqttConnection
     IotListDouble_t subscriptionList;            /**< @brief Holds subscriptions associated with this connection. */
     IotMutex_t subscriptionMutex;                /**< @brief Grants exclusive access to the subscription list. */
 
+    uint64_t lastMessageTime;                    /**< @brief When the most recent message was transmitted. */
     bool keepAliveFailure;                       /**< @brief Failure flag for keep-alive operation. */
     uint32_t keepAliveMs;                        /**< @brief Keep-alive interval in milliseconds. Its max value (per spec) is 65,535,000. */
     uint32_t nextKeepAliveMs;                    /**< @brief Relative delay for next keep-alive job. */

@@ -1,6 +1,6 @@
 /*
-Amazon FreeRTOS OTA PAL for Curiosity_PIC32MZEF V1.0.4
-Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+FreeRTOS OTA PAL for Curiosity_PIC32MZEF V1.0.4
+Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -30,7 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define _AWS_NVM_H_
 
 #include <stdint.h>
-#include "aws_ota_types.h"
+#include "aws_iot_ota_types.h"
 #include "FreeRTOS.h"
 
 #define AWS_NVM_QUAD_SIZE       16U

@@ -1,6 +1,6 @@
 """
-Amazon FreeRTOS
-Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+FreeRTOS
+Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -27,16 +27,17 @@ import fileinput
 import sys
 import subprocess
 import os
+import math
 from time import sleep
 
 
 class OtaAfrProject:
-    """OtaAfrProject represents the Amazon FreeRTOS code base for OTA.
-    This class is used to update the Amazon FreeRTOS project for OTA.
+    """OtaAfrProject represents the FreeRTOS code base for OTA.
+    This class is used to update the FreeRTOS project for OTA.
     Attributes:
         _buildConfig(dict): Build configuration from 'build_config' field in board.json.
-        _projectRootDir(str): The root of the Amazon FreeRTOS project i.e. $AFR_ROOT/demos or $AFR_ROOT/tests.
-        _boardProjectPath(str): the vendor/board/project specific path for building Amazon FreeRTOS.
+        _projectRootDir(str): The root of the FreeRTOS project i.e. $AFR_ROOT/demos or $AFR_ROOT/tests.
+        _boardProjectPath(str): the vendor/board/project specific path for building FreeRTOS.
         _buildProject(str): the name of the build project, which can be either 'demos' or 'tests'.
         _bootloaderSequenceNumber(int): the sequence number of bootloader.
     Methods:
@@ -79,20 +80,21 @@ class OtaAfrProject:
         self._bootloaderSequenceNumber = 0
 
         OtaAfrProject.RUNNER_PATH = self._boardProjectPath + '/config_files/aws_demo_config.h'
+        OtaAfrProject.OTA_CONFIG_PATH = self._boardProjectPath + '/config_files/aws_ota_agent_config.h'
         OtaAfrProject.BLE_CONFIG_PATH = self._boardProjectPath + '/config_files/iot_ble_config.h'
         OtaAfrProject.IOT_NETWORK_PATH = self._boardProjectPath + '/config_files/aws_iot_network_config.h'
         OtaAfrProject.CLIENT_CREDENTIAL_PATH = self._buildProject + '/include/aws_clientcredential.h'
         OtaAfrProject.APPLICATION_VERSION_PATH = self._buildProject + '/include/aws_application_version.h'
         OtaAfrProject.CLIENT_CREDENTIAL_KEYS_PATH = self._buildProject + '/include/aws_clientcredential_keys.h'
         OtaAfrProject.OTA_CODESIGNER_CERTIFICATE_PATH = 'demos/include/aws_ota_codesigner_certificate.h'
-        if 'microchip' in self._boardProjectPath:
+        if 'curiosity_pic32mzef' in self._board_name:
             OtaAfrProject.OTA_BOOTLOADER_CONFIG_PATH = boardConfig['vendor_board_path'] + '/bootloader/bootloader/utility/user-config/ota-descriptor.config'
             OtaAfrProject.OTA_BOOTLOADER_CERTIFICATE_PATH = boardConfig['vendor_board_path'] + '/bootloader/bootloader/utility/codesigner_cert_utility/aws_ota_codesigner_certificate.pem'
             OtaAfrProject.OTA_FACTORY_IMAGE_GENERATOR_PATH = boardConfig['vendor_board_path'] + '/bootloader/bootloader/utility/factory_image_generator.py'
         # OtaAfrProject.OTA_UPDATE_DEMO_PATH = 'demos/ota/aws_ota_update_demo.c' // TODO: need to figure out the changes for non prod version to work.
 
     def initializeOtaProject(self):
-        """Initialize the Amazon FreeRTOS project for OTA.
+        """Initialize the FreeRTOS project for OTA.
         """
         if self._buildProject == 'demos':
             self.__setDemoRunnerForOtaDemo()
@@ -102,7 +104,7 @@ class OtaAfrProject:
             raise Exception('ERROR: Invalid project root \"{}\". The valid values are \"demos\" and \"tests\".'.format(base))
 
     def generateFactoryImage(self):
-        # If this board uses the Amazon FreeRTOS reference bootlaoder, then we want to
+        # If this board uses the FreeRTOS reference bootlaoder, then we want to
         # build and flash the factory image.
         if self._buildConfig.get('use_reference_bootloader', False) and OtaAfrProject.OTA_FACTORY_IMAGE_GENERATOR_PATH:
             factoryImageGenCommand = \
@@ -118,7 +120,7 @@ class OtaAfrProject:
 
 
     def buildProject(self):
-        """Build the Amazon FreeRTOS project represented by this object.
+        """Build the FreeRTOS project represented by this object.
         """
         # Update the bootloader sequence number for every new build
         returnCodes = []
@@ -135,7 +137,7 @@ class OtaAfrProject:
         for command in buildCommands:
             command = command.format(**self._buildConfig)
             print('====> Executing Command: ' + command)
-            proc = subprocess.Popen(command + ' > build.log 2>&1', shell=True)
+            proc = subprocess.Popen(command + ' >> build.log 2>&1', shell=True)
             proc.wait()
             print('====> Command run completed with the return code: ', proc.returncode)
             returnCodes.append(proc.returncode)
@@ -299,11 +301,28 @@ class OtaAfrProject:
         )
 
     def setOtaBlockSize(self, blockSize):
-        """Set aws_application_version.h with the input version.
+        """Set size of data block for OTA in aws_ota_agent_config.h.
+        """
+        log2size = int(round(math.log2(blockSize)))
+        self.__setIdentifierInFile(
+            {'#define otaconfigLOG2_FILE_BLOCK_SIZE': str(log2size) + 'UL'},
+            os.path.join(self._projectRootDir, OtaAfrProject.OTA_CONFIG_PATH)
+        )
+
+    def setOtaBlockNumber(self, blockNum):
+        """Set number of data block for OTA streaming service in aws_ota_agent_config.h.
         """
         self.__setIdentifierInFile(
-            {' #define otaconfigMAX_NUM_BLOCKS_REQUEST': str(blockSize) + 'U'},
-            os.path.join(self._projectRootDir, self._boardProjectPath, 'config_files', 'aws_ota_agent_config.h')
+            {'#define otaconfigMAX_NUM_BLOCKS_REQUEST': str(blockNum) + 'U'},
+            os.path.join(self._projectRootDir, OtaAfrProject.OTA_CONFIG_PATH)
+        )
+
+    def setOTAPrimaryDataProtocol(self, protocol):
+        """Set primary data protocol in aws_ota_agent_config.h.
+        """
+        self.__setIdentifierInFile(
+            {'#define configOTA_PRIMARY_DATA_PROTOCOL': f'OTA_DATA_OVER_{protocol.upper()}'},
+            os.path.join(self._projectRootDir, OtaAfrProject.OTA_CONFIG_PATH)
         )
 
     def __insertTexts(self, prefix, texts, filePath):
@@ -351,6 +370,26 @@ class OtaAfrProject:
             os.path.join(self._projectRootDir, OtaAfrProject.BLE_CONFIG_PATH)
         )
 
+    def setHTTPConfig(self):
+        """Set necessary configs for enabling OTA over HTTP
+        """
+        # Disable BLE as we don't have enough memory.
+        if 'esp32' in self._board_name:
+            self.__setIdentifierInFile(
+                {
+                    '#define configENABLED_NETWORKS': '( AWSIOT_NETWORK_TYPE_WIFI )'
+                },
+                os.path.join(self._projectRootDir, OtaAfrProject.IOT_NETWORK_PATH)
+            )
+
+        # Turn on HTTP in OTA.
+        self.__setIdentifierInFile(
+            {
+                '#define configENABLED_DATA_PROTOCOLS': '( OTA_DATA_OVER_MQTT | OTA_DATA_OVER_HTTP )'
+            },
+            os.path.join(self._projectRootDir, OtaAfrProject.OTA_CONFIG_PATH)
+        )
+
     def setCodesignerCertificate(self, certificate):
         """Set aws_ota_codesigner_certificate.h with the certificate specified.
         """
@@ -369,28 +408,6 @@ class OtaAfrProject:
             {
                 '            xConnectParams.pcCertificate =': '( char* ) clientcredentialROOT_CA_PEM;',
                 '            xConnectParams.ulCertificateSize =': 'sizeof(clientcredentialROOT_CA_PEM)-1;'
-            },
-            os.path.join(self._projectRootDir, OtaAfrProject.OTA_UPDATE_DEMO_PATH)
-        )
-
-    def setOtaUpdateDemoForNullCertificate(self):
-        """Sets the secure connection certificate in the MQTT connection parameters
-        in the OTA update demo.
-        """
-        self.__setIdentifierInFile(
-            {
-                '            xConnectParams.pcCertificate =': 'NULL;',
-                '            xConnectParams.ulCertificateSize =': '0;'
-            },
-            os.path.join(self._projectRootDir, OtaAfrProject.OTA_UPDATE_DEMO_PATH)
-        )
-
-    def setOtaDemoRunnerForSNIDisabled(self):
-        """Disabled SNI by setting mqttagentURL_IS_IP_ADDRESS in the connection parameters.
-        """
-        self.__setIdentifierInFile(
-            {
-                '            xConnectParams.xFlags =': 'mqttagentREQUIRE_TLS | mqttagentURL_IS_IP_ADDRESS;'
             },
             os.path.join(self._projectRootDir, OtaAfrProject.OTA_UPDATE_DEMO_PATH)
         )

@@ -17,12 +17,12 @@ if(NOT ${AFR_TOOLCHAIN} STREQUAL "arm-gcc")
 endif()
 
 # -------------------------------------------------------------------------------------------------
-# Amazon FreeRTOS Console metadata
+# FreeRTOS Console metadata
 # -------------------------------------------------------------------------------------------------
 
-afr_set_board_metadata(ID "Infineon-XMC4800-IoT-Kit")
+afr_set_board_metadata(ID "Infineon-XMC4800-IoT-Connectivity-Kit")
 afr_set_board_metadata(DISPLAY_NAME "XMC4800 IoT Connectivity Kit")
-afr_set_board_metadata(DESCRIPTION "Development kit for ARM� Cortex�-M4 based XMC4800 MCU")
+afr_set_board_metadata(DESCRIPTION "Development kit for ARM Cortex-M4 based XMC4800 MCU")
 afr_set_board_metadata(VENDOR_NAME "Infineon")
 afr_set_board_metadata(FAMILY_NAME "XMC4x00")
 afr_set_board_metadata(CODE_SIGNER "null")
@@ -32,7 +32,8 @@ afr_set_board_metadata(SUPPORTED_IDE "DAVE")
 afr_set_board_metadata(RECOMMENDED_IDE "DAVE")
 afr_set_board_metadata(IDE_DAVE_NAME "DAVE")
 afr_set_board_metadata(IDE_DAVE_COMPILER "GCC")
-
+afr_set_board_metadata(KEY_IMPORT_PROVISIONING "TRUE")
+afr_set_board_metadata(IS_ACTIVE "TRUE")
 afr_set_board_metadata(IDE_DAVE_PROJECT_LOCATION "${AFR_ROOT_DIR}/projects/infineon/xmc4800_iotkit/dave4/aws_demos")
 afr_set_board_metadata(AWS_DEMOS_CONFIG_FILES_LOCATION "${AFR_ROOT_DIR}/vendors/infineon/boards/xmc4800_iotkit/aws_demos/config_files")
 
@@ -137,7 +138,7 @@ target_link_libraries(
 )
 
 # -------------------------------------------------------------------------------------------------
-# Kernel and Amazon FreeRTOS portable layers
+# Kernel and FreeRTOS portable layers
 # -------------------------------------------------------------------------------------------------
 
 # Kernel
@@ -180,6 +181,7 @@ set(kernel_includes
     "${AFR_KERNEL_DIR}/include"
     "$<IF:${AFR_IS_TESTING},${AFR_TESTS_DIR},${AFR_DEMOS_DIR}>/include"
     "${AFR_3RDPARTY_DIR}/mbedtls/include"
+    "${AFR_3RDPARTY_DIR}/mbedtls_utils"
     "${xmc4800_aws_dir}/config_files"
 )
 
@@ -237,7 +239,7 @@ target_sources(
 )
 
 # -------------------------------------------------------------------------------------------------
-# Amazon FreeRTOS demos and tests
+# FreeRTOS demos and tests
 # -------------------------------------------------------------------------------------------------
 set(CMAKE_EXECUTABLE_SUFFIX ".elf")
 
@@ -253,43 +255,46 @@ afr_glob_src(board_src DIRECTORY "${xmc4800_aws_dir}/application_code/infineon_c
 afr_glob_src(newlib DIRECTORY "${xmclib_dir}/Newlib")
 afr_glob_src(config_src DIRECTORY "${xmc4800_aws_dir}/config_files")
 
-add_executable(
-    ${exe_target}
-    ${board_src}
-    ${config_src}
-    ${newlib}
-    ${esp_at_lib}
-    ${linker_script}
-    "${xmc4800_aws_dir}/application_code/main.c"
-)
+# Do not add demos or tests if they're turned off.
+if(AFR_ENABLE_DEMOS OR AFR_ENABLE_TESTS)
+    add_executable(
+        ${exe_target}
+        ${board_src}
+        ${config_src}
+        ${newlib}
+        ${esp_at_lib}
+        ${linker_script}
+        "${xmc4800_aws_dir}/application_code/main.c"
+    )
 
-target_link_libraries(
-    ${exe_target}
-    PRIVATE
-        AFR::wifi
-        AFR::utils
-)
+    target_link_libraries(
+        ${exe_target}
+        PRIVATE
+            AFR::wifi
+            AFR::utils
+    )
 
-if(AFR_METADATA_MODE)
-    return()
+    if(AFR_METADATA_MODE)
+        return()
+    endif()
+
+    find_program(gcc_objectcopy arm-none-eabi-objcopy)
+    find_program(gcc_size arm-none-eabi-size)
+
+    if(NOT gcc_objectcopy )
+        message(FATAL_ERROR "Cannot find arm-none-eabi-objcopy.")
+    endif()
+
+    set(output_file "$<TARGET_FILE_DIR:${exe_target}>/${exe_target}.hex")
+
+    add_custom_command(
+        TARGET ${exe_target} POST_BUILD
+        COMMAND "${gcc_objectcopy}" -O ihex "$<TARGET_FILE:${exe_target}>" "${output_file}"
+        COMMAND "${gcc_size}" "$<TARGET_FILE:${exe_target}>"
+    )
+
+    add_custom_command(
+        TARGET ${exe_target} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy "${output_file}" "${CMAKE_BINARY_DIR}"
+    )
 endif()
-
-find_program(gcc_objectcopy arm-none-eabi-objcopy)
-find_program(gcc_size arm-none-eabi-size)
-
-if(NOT gcc_objectcopy )
-    message(FATAL_ERROR "Cannot find arm-none-eabi-objcopy.")
-endif()
-
-set(output_file "$<TARGET_FILE_DIR:${exe_target}>/${exe_target}.hex")
-
-add_custom_command(
-    TARGET ${exe_target} POST_BUILD
-    COMMAND "${gcc_objectcopy}" -O ihex "$<TARGET_FILE:${exe_target}>" "${output_file}"
-    COMMAND "${gcc_size}" "$<TARGET_FILE:${exe_target}>"
-)
-
-add_custom_command(
-    TARGET ${exe_target} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy "${output_file}" "${CMAKE_BINARY_DIR}"
-)

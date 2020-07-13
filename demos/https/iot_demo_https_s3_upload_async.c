@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS V201906.00 Major
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202002.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -38,7 +38,7 @@
 /* Set up logging for this demo. */
 #include "iot_demo_logging.h"
 
-/* Amazon FreeRTOS includes. */
+/* FreeRTOS includes. */
 #include "iot_demo_https_common.h"
 #include "iot_https_utils.h"
 #include "aws_demo_config.h"
@@ -48,7 +48,7 @@
 #include "platform/iot_clock.h"
 
 /**
- * This demonstrates uploading a file to S3 using a pre-signed URL using the Amazon FreeRTOS HTTP Client library.
+ * This demonstrates uploading a file to S3 using a pre-signed URL using the FreeRTOS HTTP Client library.
  * The HTTPS Client library is a generic HTTP/1.1 client library that be used to upload files to other webservers as
  * well.
  *
@@ -236,6 +236,9 @@ static void _responseCompleteCallback( void * pPrivData,
                                        IotHttpsReturnCode_t rc,
                                        uint16_t status )
 {
+    ( void ) rc;
+    ( void ) respHandle;
+
     bool * pUploadSuccess = ( bool * ) pPrivData;
 
     /* When the remote server response with 200 OK, the file was successfully uploaded. */
@@ -317,7 +320,7 @@ int RunHttpsAsyncUploadDemo( bool awsIotMqttMode,
 
     IotLogInfo( "HTTPS Client Asynchronous S3 upload demo using pre-signed URL: %s", IOT_DEMO_HTTPS_PRESIGNED_PUT_URL );
 
-    /* Retrieve the path location from IOT_DEMO_HTTPS_PRESIGNED_GET_URL. This fuction returns the length of the path
+    /* Retrieve the path location from IOT_DEMO_HTTPS_PRESIGNED_GET_URL. This function returns the length of the path
      * without the query into pathLen. */
     httpsClientStatus = IotHttpsClient_GetUrlPath( IOT_DEMO_HTTPS_PRESIGNED_PUT_URL,
                                                    strlen( IOT_DEMO_HTTPS_PRESIGNED_PUT_URL ),
@@ -435,7 +438,7 @@ int RunHttpsAsyncUploadDemo( bool awsIotMqttMode,
 
     if( httpsClientStatus != IOT_HTTPS_OK )
     {
-        IotLogError( "Failed to connect to the S3 server. Error code: %d.", httpsClientStatus );
+        IotLogError( "Failed to connect to the server. Error code: %d.", httpsClientStatus );
         IOT_SET_AND_GOTO_CLEANUP( EXIT_FAILURE );
     }
 

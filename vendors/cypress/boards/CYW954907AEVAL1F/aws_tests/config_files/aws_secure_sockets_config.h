@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS V1.1.4
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V1.1.4
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -52,6 +52,16 @@
  * @brief Default max socket number support
  */
 #define socketsconfigDEFAULT_MAX_NUM_SECURE_SOCKETS     5
+
+/**
+ * @brief Stack depth for the task that runs the receive callback function
+ *
+ * When SOCKETS_SetSockOpt() is called with SOCKETS_SO_WAKEUP_CALLBACK and
+ * a function pointer, a task is created to run the callback each time the
+ * socket becomes ready.  This is the number of words (not bytes!) to allocate
+ * for use as the task’s stack.
+ */
+#define socketsconfigRECEIVE_CALLBACK_TASK_STACK_DEPTH      512u
 
 /**
  * @brief Enable metrics of secure socket.

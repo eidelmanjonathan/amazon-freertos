@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS V1.4.7
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V1.4.7
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -22,6 +22,7 @@
  * http://aws.amazon.com/freertos
  * http://www.FreeRTOS.org
  */
+
 
 /**
  * @file aws_secure_sockets_config.h
@@ -52,5 +53,20 @@
  * @brief Enable metrics of secure socket.
  */
 #define AWS_IOT_SECURE_SOCKETS_METRICS_ENABLED    ( 1 )
+
+/**
+ * @brief Stack depth for the task that runs the receive callback function
+ *
+ * When SOCKETS_SetSockOpt() is called with SOCKETS_SO_WAKEUP_CALLBACK and
+ * a function pointer, a task is created to run the callback each time the
+ * socket becomes ready.  This is the number of words (not bytes!) to allocate
+ * for use as the task’s stack.
+ */
+#define socketsconfigRECEIVE_CALLBACK_TASK_STACK_DEPTH      1024u
+
+/**
+ * @brief Default max socket number support
+ */
+#define socketsconfigDEFAULT_MAX_NUM_SECURE_SOCKETS     10
 
 #endif /* _AWS_SECURE_SOCKETS_CONFIG_H_ */

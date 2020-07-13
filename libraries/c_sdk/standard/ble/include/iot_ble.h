@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS BLE V2.0.0
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS BLE V2.0.1
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -50,8 +50,8 @@
 typedef struct
 {
     uint32_t appearance;      /**< Appearance. */
-    uint32_t minInterval;     /**< Minimum connection interval. */
-    uint32_t maxInterval;     /**< Maximum connection interval. */
+    uint32_t minInterval;     /**< Minimum connection interval. Set this to 0, to use BLE stack specific default values. */
+    uint32_t maxInterval;     /**< Maximum connection interval. Set this to 0, to use BLE stack specific default values. */
     char * pManufacturerData; /**< Manufacturer data */
     char * pServiceData;      /**< Service data */
     BTUuid_t * pUUID1;        /**< First UUID to advertise. */
@@ -284,25 +284,17 @@ typedef void ( * IotBle_ConnParameterUpdateRequestCallback_t )( BTStatus_t statu
 
 /**
  * @ingroup ble_datatypes_functionpointers
- * @brief Callback invoked on BLE_RemoveBond.
- *
- * @param[in] status Returns eBTStatusSuccess if operation succeeded.
- * @param[in] pRemoteBdAddr Address of the bonded device.
- */
-typedef void (* IotBleRemoveBondCallback_t)( BTStatus_t status,
-                                             const BTBdaddr_t * pRemoteBdAddr );
-
-/**
- * @ingroup ble_datatypes_functionpointers
  * @brief Callback invoked when pairing state is changed.
  *
  * @param[in] status Returns eBTStatusSuccess if operation succeeded.
  * @param[in] pRemoteBdAddr Address of the remote device.
+ * @param[in] bondState Bond state value.
  * @param[in] securityLevel Security level (mode 1, level 1, 2 ,3 ,4).
  * @param[in] reason Reason for failing to authenticate.
  */
 typedef void (* IotBle_PairingStateChanged_t)( BTStatus_t status,
                                                BTBdaddr_t * pRemoteBdAddr,
+                                               BTBondState_t bondstate,
                                                BTSecurityLevel_t securityLevel,
                                                BTAuthFailureReason_t reason );
 
@@ -318,25 +310,11 @@ typedef void ( * IotBle_NumericComparisonCallback_t )( BTBdaddr_t * pRemoteBdAdd
                                                        uint32_t passKey );
 
 /**
- * @ingroup ble_datatypes_functionpointers
- * @brief Bonded callback, called when a bonded is established or removed.
- * Invoked on bond event or on BLE_RemoveBond.
- *
- * @param[in] status Returns eBTStatusSuccess if operation succeeded.
- * @param[in] pRemoteBdAddr Remote device address.
- * @param[in] isBonded true if address is bonded, false otherwise
- */
-typedef void ( * IotBle_BondedCallback_t)( BTStatus_t status,
-                                           BTBdaddr_t * pRemoteBdAddr,
-                                           bool isBonded );
-
-/**
  * @ingroup ble_datatypes_enums
  * @brief enum listing all the BLE events (not directly triggered by a function call)
  */
 typedef enum
 {
-    eBLEBonded,                             /**< Bonded toggled event */
     eBLEMtuChanged,                         /**< eBLEMtuChanged Event triggering BLEMtuChangedCallback_t. */
     eBLEConnection,                         /**< eBLEConnection Event  triggering BLEConnectionCallback_t. */
     eBLEPairingStateChanged,                /**< eBLEPairingStateChanged Event triggering BLEPairingStateChanged_t. */
@@ -352,7 +330,6 @@ typedef enum
  */
 typedef union
 {
-    IotBle_BondedCallback_t pBondedCb;                                         /**< Device bonded event. */
     IotBle_MtuChangedCallback_t pMtuChangedCb;                                 /**<  MTU changed event */
     IotBle_ConnectionCallback_t pConnectionCb;                                 /**<  Connection event. */
     IotBle_PairingStateChanged_t pGAPPairingStateChangedCb;                    /**<  Pairing state changed event. */
@@ -664,5 +641,23 @@ BTStatus_t IotBle_GetConnectionInfo( uint16_t connId,
 BTStatus_t IotBle_ConfirmNumericComparisonKeys( BTBdaddr_t * pBdAddr,
                                                 bool keyAccepted );
 /* @[declare_iotble_confirmnumericcomparisonkeys] */
+
+
+/**
+ * @brief Set device name for BLE.
+ *
+ * API can be used to set the device name before turning on BLE by calling IotBle_On(),
+ * or when BLE is running. When BLE is advertising mode, setting device name should take into effect
+ * immediately for the current advertisement. The device name needs to be set only once and
+ * is available across BLE turn off-turn on cycles. API should be called only after IotBle_Init().
+ *
+ * @param[in] pName Pointer to the device name string.
+ * @param[in] length Length of the device name string without null terminator.
+ * @return Returns eBTStatusSuccess on successful call or error code otherwise.
+ */
+/* @[declare_iotble_setdevicename] */
+BTStatus_t IotBle_SetDeviceName( const char * pName,
+                                 size_t length );
+/* @[declare_iotble_setdevicename] */
 
 #endif /* _AWS_BLE_H_*/

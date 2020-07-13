@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+* FreeRTOS
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -55,5 +55,6 @@ void prvCopytoESPUUID( esp_bt_uuid_t * pxESPuuid,
 BTStatus_t prvSetIOs( BTIOtypes_t xPropertyIO );
 BTStatus_t prvToggleBondableFlag( bool bEnable );
 BTStatus_t prvToggleSecureConnectionOnlyMode( bool bEnable );
+char * prxESPGetBLEDeviceName( void );
 
 #endif /* ifndef _AWS_BLE_INTERNALS_H_ */

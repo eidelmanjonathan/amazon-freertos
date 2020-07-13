@@ -29,8 +29,8 @@
  */
 
 /*
- * Amazon FreeRTOS V1.4.7
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V1.4.7
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -66,7 +66,7 @@
 #include "pin_mux.h"
 #include <stdbool.h>
 
-/* Amazon FreeRTOS Demo Includes */
+/* FreeRTOS Demo Includes */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "aws_clientcredential.h"
@@ -83,6 +83,7 @@
 #include "usb_device_descriptor.h"
 #include "virtual_com.h"
 #include "fsl_power.h"
+#include "mflash_drv.h"
 
 /*******************************************************************************
  * Definitions
@@ -216,6 +217,9 @@ int main( void )
     #endif
 
     BOARD_InitDebugConsole();
+
+    /* Initialize FLASH driver */
+    mflash_drv_init();
 
     xLoggingTaskInitialize( mainLOGGING_TASK_STACK_SIZE,
                             mainLOGGING_TASK_PRIORITY,

@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS BLE HAL V1.0.0
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS BLE HAL V4.0.1
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -33,12 +33,6 @@
 
 #include "iot_test_ble_hal_common.h"
 
-void prvWriteCheckAndResponse( bletestAttSrvB_t xAttribute,
-                               bool bNeedRsp,
-                               bool IsPrep,
-                               uint16_t usOffset );
-void prvSetGetProperty( BTProperty_t * pxProperty,
-                        bool bIsSet );
 void prvSetAdvertisement( BTGattAdvertismentParams_t * pxParams,
                           uint16_t usServiceDataLen,
                           char * pcServiceData,

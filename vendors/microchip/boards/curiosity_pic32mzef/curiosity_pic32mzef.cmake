@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------------------------------
-# Amazon FreeRTOS Console metadata
+# FreeRTOS Console metadata
 # -------------------------------------------------------------------------------------------------
 afr_set_board_metadata(ID "MCHP-Curiosity-PIC32MZEF")
 afr_set_board_metadata(DISPLAY_NAME "Curiosity PIC32MZEF")
@@ -14,6 +14,7 @@ afr_set_board_metadata(SUPPORTED_IDE "MPLABX")
 afr_set_board_metadata(RECOMMENDED_IDE "MPLABX")
 afr_set_board_metadata(IDE_MPLABX_NAME "MPLAB X")
 afr_set_board_metadata(IDE_MPLABX_COMPILER "XC32")
+afr_set_board_metadata(KEY_IMPORT_PROVISIONING "TRUE")
 
 afr_set_board_metadata(IDE_MPLABX_PROJECT_LOCATION "${AFR_ROOT_DIR}/projects/microchip/curiosity_pic32mzef/mplab/aws_demos")
 afr_set_board_metadata(IDE_MPLABX_ADDITIONAL_FILES "${AFR_ROOT_DIR}/projects/microchip/curiosity_pic32mzef/mplab/bootloader")

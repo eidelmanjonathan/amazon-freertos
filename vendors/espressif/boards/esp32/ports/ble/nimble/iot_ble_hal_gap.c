@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+* FreeRTOS
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -43,6 +43,11 @@
 
 BTBleAdapterCallbacks_t xBTBleAdapterCallbacks;
 static struct ble_gap_adv_params xAdv_params;
+
+#define IOT_BLE_ADVERTISING_DURATION_MS    ( 10 )
+
+/* Duration of advertisement. By default advertise for inifinite duration. */
+static int32_t lAdvDurationMS = BLE_HS_FOREVER;
 static bool xPrivacy;
 
 static BTStatus_t prvBTBleAdapterInit( const BTBleAdapterCallbacks_t * pxCallbacks );
@@ -243,6 +248,13 @@ BTStatus_t prvToggleSecureConnectionOnlyMode( bool bEnable )
     return xStatus;
 }
 
+void prvEnableRPA( void )
+{
+    ble_hs_cfg.sm_our_key_dist   = BLE_SM_PAIR_KEY_DIST_ID | BLE_SM_PAIR_KEY_DIST_ENC;
+    ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ID | BLE_SM_PAIR_KEY_DIST_ENC;
+}
+
+
 BTStatus_t prvBTBleAdapterInit( const BTBleAdapterCallbacks_t * pxCallbacks )
 {
     BTStatus_t xStatus = eBTStatusSuccess;
@@ -272,6 +284,11 @@ BTStatus_t prvBTBleAdapterInit( const BTBleAdapterCallbacks_t * pxCallbacks )
     if( xStatus == eBTStatusSuccess )
     {
         xStatus = prvToggleSecureConnectionOnlyMode( xProperties.bSecureConnectionOnly );
+    }
+
+    if( xStatus == eBTStatusSuccess )
+    {
+        prvEnableRPA();
     }
 
     if( pxCallbacks != NULL )
@@ -391,8 +408,11 @@ BTStatus_t prvBTDisconnect( uint8_t ucAdapterIf,
                             uint16_t usConnId )
 {
     BTStatus_t xStatus = eBTStatusSuccess;
+    esp_err_t xRet = ESP_OK;
 
-    if( ble_gap_terminate( usConnId, BLE_ERR_CONN_TERM_LOCAL ) != 0 )
+    xRet = ble_gap_terminate( usConnId, BLE_ERR_REM_USER_CONN_TERM );
+
+    if( ( xRet != 0 ) && ( xRet != BLE_HS_EALREADY ) )
     {
         xStatus = eBTStatusFail;
     }
@@ -407,17 +427,9 @@ BTStatus_t prvBTStartAdv( uint8_t ucAdapterIf )
 {
     int xESPStatus;
     BTStatus_t xStatus = eBTStatusSuccess;
-    uint8_t own_addr_type;
 
-    /* Figure out address to use while advertising */
-    xESPStatus = ble_hs_id_infer_auto( xPrivacy, &own_addr_type );
-
-    if( xESPStatus != 0 )
-    {
-        xStatus = eBTStatusFail;
-    }
-
-    xESPStatus = ble_gap_adv_start( own_addr_type, NULL, BLE_HS_FOREVER,
+    /* Set address type to always random as RPA is enabled. */
+    xESPStatus = ble_gap_adv_start( BLE_OWN_ADDR_RANDOM, NULL, lAdvDurationMS,
                                     &xAdv_params, prvGAPeventHandler, NULL );
 
     if( xESPStatus != 0 )
@@ -427,7 +439,7 @@ BTStatus_t prvBTStartAdv( uint8_t ucAdapterIf )
 
     if( xBTBleAdapterCallbacks.pxAdvStatusCb != NULL )
     {
-        xBTBleAdapterCallbacks.pxAdvStatusCb( xStatus, ulGattServerIFhandle, true );
+        xBTBleAdapterCallbacks.pxAdvStatusCb( xStatus, 0, true );
     }
 
     return xStatus;
@@ -538,9 +550,9 @@ BTStatus_t prvBTSetAdvData( uint8_t ucAdapterIf,
     struct ble_hs_adv_fields fields;
     const char * name;
     int xESPStatus;
-    ble_uuid16_t uuid16 = { 0 };
-    ble_uuid32_t uuid32 = { 0 };
-    ble_uuid128_t uuid128 = { 0 };
+    ble_uuid16_t uuid16;
+    ble_uuid32_t uuid32;
+    ble_uuid128_t uuid128;
 
     BTStatus_t xStatus = eBTStatusSuccess;
 
@@ -607,42 +619,90 @@ BTStatus_t prvBTSetAdvData( uint8_t ucAdapterIf,
         fields.mfg_data_len = usManufacturerLen;
     }
 
+    if( ( pxParams->ulMinInterval != 0 ) && ( pxParams->ulMaxInterval != 0 ) )
+    {
+        uint8_t slave_itvl_range[ 4 ];
+        slave_itvl_range[ 0 ] = ( pxParams->ulMinInterval ) & 0xFF;
+        slave_itvl_range[ 1 ] = ( pxParams->ulMinInterval >> 8 ) & 0xFF;
+        slave_itvl_range[ 2 ] = ( pxParams->ulMaxInterval ) & 0xFF;
+        slave_itvl_range[ 3 ] = ( pxParams->ulMaxInterval >> 8 ) & 0xFF;
+        fields.slave_itvl_range = slave_itvl_range;
+    }
+
     if( usServiceDataLen && pcServiceData )
     {
-        fields.svc_data_uuid128 = ( uint8_t * ) pcServiceData;
-        fields.svc_data_uuid128_len = usServiceDataLen;
+        fields.svc_data_uuid16 = ( uint8_t * ) pcServiceData;
+        fields.svc_data_uuid16_len = usServiceDataLen;
     }
+
+    fields.num_uuids16 = 0;
+    fields.num_uuids32 = 0;
+    fields.num_uuids128 = 0;
 
     if( pxServiceUuid != NULL )
     {
-        if( pxServiceUuid->ucType == eBTuuidType16 )
+        for( size_t i = 0; i < xNbServices; i++ )
         {
-            uuid16.u.type = BLE_UUID_TYPE_16;
-            uuid16.value = pxServiceUuid->uu.uu16;
-            fields.uuids16 = &uuid16;
-            fields.num_uuids16 = 1;
-            fields.uuids16_is_complete = 1;
-        }
-        else if( pxServiceUuid->ucType == eBTuuidType32 )
-        {
-            uuid32.u.type = BLE_UUID_TYPE_32;
-            uuid16.value = pxServiceUuid->uu.uu32;
-            fields.uuids32 = &uuid32;
-            fields.num_uuids32 = 1;
-            fields.uuids32_is_complete = 1;
-        }
-        else if( pxServiceUuid->ucType == eBTuuidType128 )
-        {
-            uuid128.u.type = BLE_UUID_TYPE_128;
-            memcpy( uuid128.value, pxServiceUuid->uu.uu128, sizeof( pxServiceUuid->uu.uu128 ) );
-            fields.uuids128 = &uuid128;
-            fields.num_uuids128 = 1;
-            fields.uuids128_is_complete = 1;
+            if( pxServiceUuid[ i ].ucType == eBTuuidType16 )
+            {
+                if( fields.num_uuids16 == 0 )
+                {
+                    uuid16.u.type = BLE_UUID_TYPE_16;
+                    uuid16.value = pxServiceUuid->uu.uu16;
+                    fields.uuids16 = &uuid16;
+                    fields.num_uuids16++;
+                    fields.uuids16_is_complete = 1;
+                }
+                else
+                {
+                    /*/ there are more than 1 service of this type, but as per bluetooth core specification supplement v8, */
+                    /*/ page 10, only one service UUID per type is allowed. Mark this as incomplete. */
+                    fields.uuids16_is_complete = 0;
+                }
+            }
+            else if( pxServiceUuid[ i ].ucType == eBTuuidType32 )
+            {
+                if( fields.num_uuids32 == 0 )
+                {
+                    uuid32.u.type = BLE_UUID_TYPE_32;
+                    uuid32.value = pxServiceUuid->uu.uu32;
+                    fields.uuids32 = &uuid32;
+                    fields.num_uuids32++;
+                    fields.uuids32_is_complete = 1;
+                }
+                else
+                {
+                    /*/ there are more than 1 service of this type, but as per bluetooth core specification supplement v8, */
+                    /*/ page 10, only one service UUID per type is allowed. Mark this as incomplete. */
+                    fields.uuids32_is_complete = 0;
+                }
+            }
+            else if( pxServiceUuid[ i ].ucType == eBTuuidType128 )
+            {
+                if( fields.num_uuids128 == 0 )
+                {
+                    uuid128.u.type = BLE_UUID_TYPE_128;
+                    memcpy( uuid128.value, pxServiceUuid->uu.uu128, sizeof( pxServiceUuid->uu.uu128 ) );
+                    fields.uuids128 = &uuid128;
+                    fields.num_uuids128++;
+                    fields.uuids128_is_complete = 1;
+                }
+                else
+                {
+                    /*/ there are more than 1 service of this type, but as per bluetooth core specification supplement v8, */
+                    /*/ page 10, only one service UUID per type is allowed. Mark this as incomplete. */
+                    fields.uuids128_is_complete = 0;
+                }
+            }
         }
     }
 
-    xAdv_params.itvl_min = ( pxParams->ulMinInterval * 1000 / BLE_HCI_ADV_ITVL );
-    xAdv_params.itvl_max = ( pxParams->ulMaxInterval * 1000 / BLE_HCI_ADV_ITVL );
+    /*
+     * The advertisment raw interval values are multiplied by advetisement
+     * interval units = ( 625/1000 ) ms as per the BLE spec.
+     */
+    xAdv_params.itvl_min = ( pxParams->usMinAdvInterval * BLE_HCI_ADV_ITVL ) / 1000;
+    xAdv_params.itvl_max = ( pxParams->usMaxAdvInterval * BLE_HCI_ADV_ITVL ) / 1000;
 
     if( pxParams->usAdvertisingEventProperties == BTAdvInd )
     {
@@ -654,6 +714,15 @@ BTStatus_t prvBTSetAdvData( uint8_t ucAdapterIf,
     {
         xAdv_params.conn_mode = BLE_GAP_CONN_MODE_DIR;
         /* fixme: set adv_params->high_duty_cycle accordingly */
+    }
+
+    if( pxParams->usTimeout != 0 )
+    {
+        lAdvDurationMS = ( int32_t ) ( pxParams->usTimeout * IOT_BLE_ADVERTISING_DURATION_MS );
+    }
+    else
+    {
+        lAdvDurationMS = BLE_HS_FOREVER;
     }
 
     if( pxParams->usAdvertisingEventProperties == BTAdvNonconnInd )

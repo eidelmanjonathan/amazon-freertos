@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+* FreeRTOS
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -92,6 +92,9 @@ static BTStatus_t prvBTSendResponse( uint16_t usConnId,
                                      BTStatus_t xStatus,
                                      BTGattResponse_t * pxResponse );
 
+static BTStatus_t prvBTConfigureMtu( uint8_t ucServerIf,
+                                     uint16_t usMtu );
+
 static BTGattServerInterface_t xGATTserverInterface =
 {
     .pxRegisterServer     = prvBTRegisterServer,
@@ -109,7 +112,8 @@ static BTGattServerInterface_t xGATTserverInterface =
     .pxStopService        = prvBTStopService,
     .pxDeleteService      = prvBTDeleteService,
     .pxSendIndication     = prvBTSendIndication,
-    .pxSendResponse       = prvBTSendResponse
+    .pxSendResponse       = prvBTSendResponse,
+    .pxConfigureMtu       = prvBTConfigureMtu
 };
 
 /*-----------------------------------------------------------*/
@@ -787,6 +791,24 @@ BTStatus_t prvBTSendResponse( uint16_t usConnId,
     }
 
     return xReturnStatus;
+}
+
+/*-----------------------------------------------------------*/
+
+static BTStatus_t prvBTConfigureMtu( uint8_t ucServerIf,
+                                     uint16_t usMtu )
+{
+    BTStatus_t xStatus = eBTStatusSuccess;
+    esp_err_t xESPStatus;
+
+    xESPStatus = esp_ble_gatt_set_local_mtu( usMtu );
+
+    if( xESPStatus != ESP_OK )
+    {
+        xStatus = eBTStatusFail;
+    }
+
+    return xStatus;
 }
 
 /*-----------------------------------------------------------*/

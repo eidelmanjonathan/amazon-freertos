@@ -1,6 +1,6 @@
 """
-Amazon FreeRTOS
-Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+FreeRTOS
+Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,20 +23,16 @@ http://aws.amazon.com/freertos
 http://www.FreeRTOS.org
 
 """
-from .aws_ota_test_case import *
-from .aws_ota_aws_agent import *
+from .aws_ota_test_case import OtaTestCase
 
-class OtaTestIncorrectWifiPassword( OtaTestCase ):
-    NAME = "OtaTestIncorrectWifiPassword"
-    def __init__(self, boardConfig, otaProject, otaAwsAgent, flashComm):
-        super(OtaTestIncorrectWifiPassword, self).__init__(
-            OtaTestIncorrectWifiPassword.NAME,
-            False,
-            boardConfig,
-            otaProject,
-            otaAwsAgent,
-            flashComm
-        )
+
+class OtaTestIncorrectWifiPassword(OtaTestCase):
+    """
+    This test verifies that device will rollback to the previous firmware if it cannot connect to
+    network with the new firmware.
+    """
+
+    is_positive = False
 
     def run(self):
         # Increase the version of the OTA image.
@@ -46,7 +42,7 @@ class OtaTestIncorrectWifiPassword( OtaTestCase ):
         # Build the project
         self._otaProject.buildProject()
         # Start an OTA Update.
-        otaUpdateId = self._otaAwsAgent.quickCreateOtaUpdate(self._otaConfig)
+        otaUpdateId = self._otaAwsAgent.quickCreateOtaUpdate(self._otaConfig, [self._protocol])
         # Reset the Wifi credentials to valid values.
         self._otaProject.setClientCredentialsForWifi(self._boardConfig['wifi_ssid'],
                                                      self._boardConfig['wifi_password'],

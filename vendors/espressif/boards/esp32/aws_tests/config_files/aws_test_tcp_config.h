@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS V1.1.4
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V1.1.4
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -29,12 +29,6 @@
 /**
  * @file aws_integration_test_tcp_portable.h
  * @brief Port-specific variables for TCP tests. */
-
-/**
- * @brief The number of sockets that can be open at one time on a port.
- *
- */
-#define         integrationtestportableMAX_NUM_UNSECURE_SOCKETS    1
 
 /**
  * @brief Indicates how much longer than the specified timeout is acceptable for

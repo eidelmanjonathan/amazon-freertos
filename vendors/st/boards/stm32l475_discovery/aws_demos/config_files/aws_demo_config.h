@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS V1.4.7
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V1.4.7
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -68,5 +68,18 @@
 /* Greengrass discovery example task parameters. */
 #define democonfigGREENGRASS_DISCOVERY_TASK_STACK_SIZE    ( configMINIMAL_STACK_SIZE * 22 )
 #define democonfigGREENGRASS_DISCOVERY_TASK_PRIORITY      ( tskIDLE_PRIORITY )
+
+#define democonfigMEMORY_ANALYSIS
+
+#ifdef democonfigMEMORY_ANALYSIS
+    #define democonfigMEMORY_ANALYSIS_STACK_DEPTH_TYPE    UBaseType_t
+    #define democonfigMEMORY_ANALYSIS_MIN_EVER_HEAP_SIZE()        xPortGetMinimumEverFreeHeapSize()
+    #if ( INCLUDE_uxTaskGetStackHighWaterMark == 1 )
+        /* Convert from stack words to bytes */
+        #define democonfigMEMORY_ANALYSIS_STACK_WATERMARK( x )    uxTaskGetStackHighWaterMark( x ) * ( uint32_t ) sizeof( StackType_t ); /*lint !e961 Casting is not redundant on smaller architectures. */
+    #else
+        #define democonfigMEMORY_ANALYSIS_STACK_WATERMARK( x )    NULL
+    #endif /* if( INCLUDE_uxTaskGetStackHighWaterMark == 1 ) */
+#endif /* democonfigMEMORY_ANALYSIS */
 
 #endif /* _AWS_DEMO_CONFIG_H_ */

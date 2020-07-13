@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS BLE HAL V2.0.0
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS BLE HAL V5.0.1
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -46,6 +46,9 @@
 #include "bt_hal_manager_types.h"
 #include "bt_hal_manager.h"
 
+/**
+ * @brief Scan Filter Parameters
+ */
 typedef struct
 {
     uint8_t ucAdapterIf;
@@ -63,6 +66,9 @@ typedef struct
     uint16_t usNumOfTrackingEntries;
 } BTGattFiltParamSetup_t;
 
+/**
+ * @brief Advertising Address Type
+ */
 typedef enum
 {
     BTAddrTypePublic,
@@ -71,6 +77,9 @@ typedef enum
     BTAddrTypeResolvable,
 } BTAddrType_t;
 
+/**
+ * @brief Advertising Type
+ */
 typedef enum
 {
     BTAdvInd,
@@ -78,6 +87,9 @@ typedef enum
     BTAdvNonconnInd,
 } BTAdvProperties_t;
 
+/**
+ * @brief Advertising Name Format
+ */
 typedef struct
 {
     enum
@@ -90,6 +102,10 @@ typedef struct
 } BTGattAdvName_t;
 
 /*TODO enum for usAdvertisingEventProperties */
+
+/**
+ * @brief Advertising Parameters
+ */
 typedef struct
 {
     BTAdvProperties_t usAdvertisingEventProperties;
@@ -97,16 +113,27 @@ typedef struct
     BTGattAdvName_t ucName;
     bool bSetScanRsp;
     uint32_t ulAppearance;
-    uint32_t ulMinInterval; /* Min connection interval, set to 0 to ignore. */
-    uint32_t ulMaxInterval; /* Max connection interval, set to 0 to ignore. */
+    uint32_t ulMinInterval;    /**< Minimum Connection Interval. If set to 0, minimum connection interval is not included in advertisement/scan response data. */
+    uint32_t ulMaxInterval;    /**< Maximum Connection Interval. If set to 0, maximum connection interval is not included in advertisement/scan response data. */
+    uint16_t usMinAdvInterval; /**< Minimum Advertising Interval in units of 0.625ms.
+                                *   Range: 0x0020 to 0x4000. Time Range: 20 ms to 10.24 s.
+                                *   If set to 0, stack specific default values will be used. */
+
+    uint16_t usMaxAdvInterval; /**< Maximum Advertising Interval in units of 0.625ms.
+                                *   Range: 0x0020 to 0x4000. Time Range: 20 ms to 10.24 s.
+                                *   If set to 0, stack specific default values will be used. */
     uint8_t ucChannelMap;
     uint8_t ucTxPower;
-    uint8_t ucTimeout;
+    uint8_t ucTimeout;                 /**< This is deprecated. Use usTimeout for advertisement duration value*/
+    uint16_t usTimeout;                /**< Advertisement duration value in units of 10ms. Set to 0 for infinite timeout for advertisements. */
     uint8_t ucPrimaryAdvertisingPhy;   /* 5.0 Specific interface */
     uint8_t ucSecondaryAdvertisingPhy; /* 5.0 Specific interface */
     BTAddrType_t xAddrType;
 } BTGattAdvertismentParams_t;
 
+/**
+ * @brief Local supported LE features
+ */
 typedef struct
 {
     uint16_t usVersionSupported;
@@ -122,7 +149,9 @@ typedef struct
     bool bDebugLoggingSupported;
 } BTLocalLeFeatures_t;
 
-/* Bluetooth local device and Remote Device property types */
+/**
+ * @brief BLE device property type
+ */
 typedef enum
 {
     /**
@@ -133,7 +162,9 @@ typedef enum
     eBTPropertyLocalLeFeatures,
 } BTBlePropertyType_t;
 
-/** Bluetooth Adapter Property data structure */
+/**
+ * @brief BLE Device Property
+ */
 typedef struct
 {
     BTBlePropertyType_t xType;
@@ -200,11 +231,11 @@ typedef void (* BTScanResultCallback_t)( BTBdaddr_t * pxBda,
  * @brief  Callback invoked on pxStartAdv and stop advertisement.
  *
  * @param[in] xStatus Returns eBTStatusSuccess if operation succeeded.
- * @param[in] ulServerIf GATT server interface.
+ * @param[in] ucAdapterIf Adapter interface ID. Returned from BTRegisterBleAdapterCallback_t after calling pxRegisterBleApp.
  * @param[in] bStarted: True for start advertisement, flase for stop
  */
 typedef void (* BTAdvStatusCallback_t)( BTStatus_t xStatus,
-                                        uint32_t ulServerIf,
+                                        uint8_t ucAdapterIf,
                                         bool bStart );
 
 /**
@@ -300,7 +331,7 @@ typedef void (* BTMultiAdvUpdateCallback_t)( uint8_t ucAdapterIf,
 
 /**
  *
- * @brief Callback invoked on pxMultiAdvSetInstData.
+ * @brief Callback invoked on pxMultiAdvSetInstData and pxMultiAdvSetInstRawData.
  *
  * @param[in] ucAdapterIf Adapter interface ID. Returned from BTRegisterBleAdapterCallback_t after calling pxRegisterBleApp
  * @param[in] xStatus Returns eBTStatusSuccess if operation succeeded.
@@ -690,8 +721,10 @@ typedef struct
      * @param[in] usManufacturerLen Length of Advertisement type Manufacturer data
      * @param[in] pcManufacturerData Advertisement type Manufacturer data
      * @param[in] usServiceDataLen Length of Advertisement type service data
-     * @param[in] pcServiceData Advertisement type service data
-     * @param[in] pxServiceUuid UUIDs of advertised service.
+     * @param[in] pcServiceData Advertisement type service data. UUIDs used in this service data can be only be 16bit.
+     *                          If longer UUIDs are needed, use pxSetAdvRawData() instead.
+     * @param[in] pxServiceUuid Array of UUIDs of advertised services.
+     *                          At most one UUID of each size (16 bit, 32 bit, 128 bit) can be included in the advertisement packet.
      * @param[in] xNbServices Number of services.
      * @return Returns eBTStatusSuccess on successful call.
      */
@@ -902,6 +935,23 @@ typedef struct
      * @brief returns the GATT server interface, see bt_hal_gatt_server.h
      */
     const void * ( *ppvGetGattServerInterface )( );
+
+    /**
+     *
+     * @brief Setup the raw data for the specified instance.
+     *
+     * Triggers BTMultiAdvDataCallback_t.
+     *
+     * @param[in] ucAdapterIf Adapter interface ID. Returned from BTRegisterBleAdapterCallback_t after calling pxRegisterBleApp
+     * @param[in] pucData raw data serialized
+     * @param[in] xDataLen serialized data length
+     * @param[in] bSetScanRsp
+     * @return Returns eBTStatusSuccess on successful call.
+     */
+    BTStatus_t ( * pxMultiAdvSetInstRawData )( uint8_t ucAdapterIf,
+                                               bool bSetScanRsp,
+                                               uint8_t * pucData,
+                                               size_t xDataLen );
 } BTBleAdapter_t;
 
 #endif /* #ifndef _BT_HAL_MANAGER_ADAPTER_BLE_H_ */

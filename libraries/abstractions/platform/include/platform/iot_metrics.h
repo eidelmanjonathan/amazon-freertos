@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS Platform V1.1.0
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS Platform V1.1.1
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -44,7 +44,7 @@
 #include "iot_linear_containers.h"
 
 /**
- * @functions_page{platform_metrics, Metrics}
+ * @functions_page{platform_metrics,platform metrics component,Metrics}
  * @functions_brief{platform metrics component}
  * - @function_name{platform_metrics_function_init}
  * @function_brief{platform_metrics_function_init}

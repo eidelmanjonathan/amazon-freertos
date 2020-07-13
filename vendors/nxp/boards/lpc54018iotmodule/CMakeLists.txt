@@ -12,15 +12,15 @@ endif()
 
 # Include IDE specific cmake file.
 if(${AFR_TOOLCHAIN} STREQUAL "arm-gcc")
-    include("mcuxpresso.cmake")
+    include("${CMAKE_CURRENT_LIST_DIR}/mcuxpresso.cmake")
 elseif(${AFR_TOOLCHAIN} STREQUAL "arm-iar")
-    include("iar.cmake")
+    include("${CMAKE_CURRENT_LIST_DIR}/iar.cmake")
 elseif(NOT AFR_METADATA_MODE)
     message( FATAL_ERROR "The toolchain is not supported." )
 endif()
 
 # -------------------------------------------------------------------------------------------------
-# Amazon FreeRTOS Console metadata
+# FreeRTOS Console metadata
 # -------------------------------------------------------------------------------------------------
 
 afr_set_board_metadata(ID "NXP-LPC54018-IoT-Module")
@@ -37,7 +37,8 @@ afr_set_board_metadata(IDE_IAREmbeddedWorkbench_NAME "IAR Embedded Workbench")
 afr_set_board_metadata(IDE_IAREmbeddedWorkbench_COMPILER "IAR")
 afr_set_board_metadata(IDE_MCUXpresso_NAME "MCUXpresso")
 afr_set_board_metadata(IDE_MCUXpresso_COMPILER "GCC")
-
+afr_set_board_metadata(KEY_IMPORT_PROVISIONING "TRUE")
+afr_set_board_metadata(IS_ACTIVE "TRUE")
 afr_set_board_metadata(IDE_IAREmbeddedWorkbench_PROJECT_LOCATION "${AFR_ROOT_DIR}/projects/nxp/lpc54018iotmodule/iar/aws_demos")
 afr_set_board_metadata(IDE_MCUXpresso_PROJECT_LOCATION "${AFR_ROOT_DIR}/projects/nxp/lpc54018iotmodule/mcuxpresso/aws_demos")
 afr_set_board_metadata(AWS_DEMOS_CONFIG_FILES_LOCATION "${AFR_ROOT_DIR}/vendors/nxp/boards/lpc54018iotmodule/aws_demos/config_files")
@@ -93,7 +94,7 @@ target_include_directories(
 )
 
 # -------------------------------------------------------------------------------------------------
-# Amazon FreeRTOS portable layers
+# FreeRTOS portable layers
 # -------------------------------------------------------------------------------------------------
 
 
@@ -267,7 +268,7 @@ target_sources(
 )
 
 # -------------------------------------------------------------------------------------------------
-# Amazon FreeRTOS demos and tests
+# FreeRTOS demos and tests
 # -------------------------------------------------------------------------------------------------
 set(CMAKE_EXECUTABLE_SUFFIX ${executable_suffix})
 
@@ -280,24 +281,22 @@ endif()
 afr_glob_src(board_code_src DIRECTORY "${lpc54018_aws_dir}/application_code/nxp_code")
 afr_glob_src(config_files_src DIRECTORY "${lpc54018_aws_dir}/config_files")
 
-# TODO, remove network manager src.
-afr_glob_src(network_manager_src DIRECTORY "${AFR_DEMOS_DIR}/network_manager")
-
-add_executable(${exe_target}
-    ${board_code_src}
-    ${config_files_src}
-    "${lpc54018_aws_dir}/application_code/main.c"
-    # TODO, It is unknown why hw_poll.c has to be included here
-    "${lpc54018_ports_dir}/pkcs11/hw_poll.c"
-    $<$<NOT:${AFR_IS_TESTING}>:${network_manager_src}>
-)
-
-target_link_libraries(
-    ${exe_target}
-    PRIVATE
-        AFR::wifi
-        AFR::utils
-)
+# Do not add demos or tests if they're turned off.
+if(AFR_ENABLE_DEMOS OR AFR_ENABLE_TESTS)
+    add_executable(${exe_target}
+        ${board_code_src}
+        ${config_files_src}
+        "${lpc54018_aws_dir}/application_code/main.c"
+        # TODO, It is unknown why hw_poll.c has to be included here
+        "${lpc54018_ports_dir}/pkcs11/hw_poll.c"
+    )
+    target_link_libraries(
+        ${exe_target}
+        PRIVATE
+            AFR::wifi
+            AFR::utils
+    )
+endif()
 
 if(NOT AFR_METADATA_MODE)
     message(FATAL_ERROR "CMake support for nxp is not complete yet.")

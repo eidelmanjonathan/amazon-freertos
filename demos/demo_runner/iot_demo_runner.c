@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS V201908.00
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202002.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -70,7 +70,6 @@ int DEMO_entryFUNCTION( bool awsIotMqttMode,
     #define DEMO_networkDisconnectedCallback    ( NULL )
 #endif
 
-
 /*-----------------------------------------------------------*/
 
 /**
@@ -79,6 +78,7 @@ int DEMO_entryFUNCTION( bool awsIotMqttMode,
 void DEMO_RUNNER_RunDemos( void )
 {
     /* These demos are shared with the C SDK and perform their own initialization and cleanup. */
+
     static demoContext_t mqttDemoContext =
     {
         .networkTypes                = democonfigNETWORK_TYPES,

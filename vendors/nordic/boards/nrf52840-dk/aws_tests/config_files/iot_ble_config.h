@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS V1.4.2
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V1.4.2
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -51,5 +51,7 @@
 
 /* Include BLE default config at bottom to set the default values for the configurations which are not overridden */
 #include "iot_ble_config_defaults.h"
+
+#include "sdk_config.h"
 
 #endif /* _IOT_BLE_CONFIG_H_ */

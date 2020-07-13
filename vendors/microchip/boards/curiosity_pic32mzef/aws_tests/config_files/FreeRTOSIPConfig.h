@@ -78,8 +78,10 @@ extern void vLoggingPrintf( const char * pcFormatString,
  * and also DNS may use small timeouts.  If a DNS reply comes in after the DNS
  * socket has been destroyed, the result will be stored into the cache.  The next
  * call to FreeRTOS_gethostbyname() will return immediately, without even creating
- * a socket. */
+ * a socket.
+ */
 #define ipconfigUSE_DNS_CACHE                      ( 1 )
+#define ipconfigDNS_CACHE_ADDRESSES_PER_ENTRY      ( 6 )
 #define ipconfigDNS_REQUEST_ATTEMPTS               ( 2 )
 
 /* The IP stack executes it its own task (although any application task can make
@@ -277,7 +279,15 @@ extern uint32_t ulRand();
  * This has to do with the contents of the IP-packets: all 32-bit fields are
  * 32-bit-aligned, plus 16-bit(!) */
 #define ipconfigPACKET_FILLER_SIZE                     2
-#define ipconfigBUFFER_PADDING                         10
+#ifdef PIC32_USE_ETHERNET
+	/* The Ethernet driver wants to store an extra pointer before the actual network packet.
+	However, the upcoming IPv6 library will use that space to store the packet type. */
+	#define ipconfigBUFFER_PADDING                         14
+#else
+	/* The WiFi driver has a regular buffer allocation using pvPortMalloc().
+	The driver doesn't store anything in the space before the Ethernet packet. */
+	#define ipconfigBUFFER_PADDING                         10
+#endif
 
 /* Define the size of the pool of TCP window descriptors.  On the average, each
  * TCP socket will use up to 2 x 6 descriptors, meaning that it can have 2 x 6

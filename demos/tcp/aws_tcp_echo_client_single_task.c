@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS V201908.00
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202002.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -46,6 +46,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
+#include "semphr.h"
 
 /* TCP/IP abstraction includes. */
 #include "iot_secure_sockets.h"
@@ -153,6 +154,10 @@ static char cTxBuffers[ echoNUM_ECHO_CLIENTS ][ echoBUFFER_SIZES ],
 
 /*-----------------------------------------------------------*/
 
+/* Create a semaphore to sync all Echo task(s). */
+static SemaphoreHandle_t EchoSingleSemaphore;
+
+
 int vStartTCPEchoClientTasks_SingleTasks( bool awsIotMqttMode,
                                           const char * pIdentifier,
                                           void * pNetworkServerInfo,
@@ -160,6 +165,7 @@ int vStartTCPEchoClientTasks_SingleTasks( bool awsIotMqttMode,
                                           const IotNetworkInterface_t * pNetworkInterface )
 {
     BaseType_t xX;
+    BaseType_t TaskCompleteCounter;
     char cNameBuffer[ echoMAX_TASK_NAME_LENGTH ];
 
     /* Unused parameters */
@@ -168,6 +174,9 @@ int vStartTCPEchoClientTasks_SingleTasks( bool awsIotMqttMode,
     ( void ) pNetworkServerInfo;
     ( void ) pNetworkCredentialInfo;
     ( void ) pNetworkInterface;
+
+    TaskCompleteCounter = 0;
+    EchoSingleSemaphore = xSemaphoreCreateCounting( echoNUM_ECHO_CLIENTS, 0 );
 
     /* Create the echo client tasks. */
     for( xX = 0; xX < echoNUM_ECHO_CLIENTS; xX++ )
@@ -181,7 +190,18 @@ int vStartTCPEchoClientTasks_SingleTasks( bool awsIotMqttMode,
                      NULL );                   /* The task handle is not used. */
     }
 
-    return 0;
+    /* Wait for all tasks to finish. */
+    while( TaskCompleteCounter < echoNUM_ECHO_CLIENTS )
+    {
+        /* Wait for the semaphore to be 'given' by a child task. */
+        xSemaphoreTake( EchoSingleSemaphore, portMAX_DELAY );
+
+        /* Increment the task completion counter variable. */
+        TaskCompleteCounter++;
+    }
+
+    /* Return Success. */
+    return EXIT_SUCCESS;
 }
 /*-----------------------------------------------------------*/
 
@@ -197,11 +217,15 @@ static void prvEchoClientTask( void * pvParameters )
     char * pcTransmittedString;
     char * pcReceivedString;
     TickType_t xTimeOnEntering;
+    BaseType_t lConnectionCount;
+    const BaseType_t lMaxConnectionCount = 10;
+
+    #if ( ipconfigUSE_TCP_WIN == 1 )
+        WinProperties_t xWinProps;
+    #endif
 
     #if ( ipconfigUSE_TCP_WIN == 1 )
         {
-            WinProperties_t xWinProps;
-
             /* Fill in the buffer and window sizes that will be used by the socket. */
             xWinProps.lTxBufSize = ipconfigTCP_TX_BUFFER_LENGTH;
             xWinProps.lTxWinSize = configECHO_CLIENT_TX_WINDOW_SIZE;
@@ -228,7 +252,8 @@ static void prvEchoClientTask( void * pvParameters )
                                                             configECHO_SERVER_ADDR2,
                                                             configECHO_SERVER_ADDR3 );
 
-    for( ; ; )
+    /* Create lMaxConnectionCount distinct connections to the echo server. */
+    for( lConnectionCount = 0; lConnectionCount < lMaxConnectionCount; lConnectionCount++ )
     {
         /* Create a TCP socket. */
         xSocket = SOCKETS_Socket( SOCKETS_AF_INET, SOCKETS_SOCK_STREAM, SOCKETS_IPPROTO_TCP );
@@ -323,7 +348,7 @@ static void prvEchoClientTask( void * pvParameters )
                 /* If an error occurred it will be latched in xReceivedBytes,
                  * otherwise xReceived bytes will be just that - the number of
                  * bytes received from the echo server. */
-                if( xReceivedBytes > 0 )
+                if( xReceivedBytes == xTransmitted )
                 {
                     /* Compare the transmitted string to the received string. */
                     configASSERT( strncmp( pcReceivedString, pcTransmittedString, xTransmitted ) == 0 );
@@ -343,13 +368,18 @@ static void prvEchoClientTask( void * pvParameters )
                         break;
                     }
                 }
-                else if( xReceivedBytes < 0 )
+                else if( xReceivedBytes == -pdFREERTOS_ERRNO_ENOTCONN )
                 {
-                    /* SOCKETS_Recv() returned an error. */
+                    /* The connection got closed. */
                     break;
                 }
                 else
                 {
+                    /* The received length did not match the transmitted
+                     * length. */
+                    ulTxRxFailures[ xInstance ]++;
+                    configPRINTF( ( "ERROR: xTransmitted %d xReceivedBytes %d \r\n",
+                                    ( int ) xTransmitted, ( int ) xReceivedBytes ) );
                     /* Timed out without receiving anything? */
                     break;
                 }
@@ -395,6 +425,12 @@ static void prvEchoClientTask( void * pvParameters )
          * congested. */
         vTaskDelay( echoLOOP_DELAY );
     }
+
+    /* Notify the parent task about completion. */
+    xSemaphoreGive( EchoSingleSemaphore );
+
+    /* Delete self. */
+    vTaskDelete( NULL );
 }
 /*-----------------------------------------------------------*/
 

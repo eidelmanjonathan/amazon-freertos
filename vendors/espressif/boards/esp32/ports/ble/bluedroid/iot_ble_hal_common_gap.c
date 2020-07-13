@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+* FreeRTOS
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -36,6 +36,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_gatts_api.h"
+#include "iot_ble_config.h"
 #include "bt_hal_manager_adapter_ble.h"
 #include "bt_hal_manager.h"
 #include "bt_hal_gatt_server.h"
@@ -53,6 +54,8 @@
 
 BTProperties_t xProperties;
 static BTCallbacks_t xBTCallbacks;
+
+static char bleDeviceName[ IOT_BLE_DEVICE_LOCAL_NAME_MAX_LENGTH + 1 ] = { 0 };
 
 static BTSecurityLevel_t prvConvertESPauthModeToSecurityLevel( esp_ble_auth_req_t xAuthMode );
 BTStatus_t prvBTManagerInit( const BTCallbacks_t * pxCallbacks );
@@ -135,6 +138,11 @@ static BTInterface_t xBTinterface =
 
 /*-----------------------------------------------------------*/
 
+char * prxESPGetBLEDeviceName( void )
+{
+    return bleDeviceName;
+}
+
 void prvGAPeventHandler( esp_gap_ble_cb_event_t event,
                          esp_ble_gap_cb_param_t * param )
 {
@@ -206,25 +214,26 @@ void prvGAPeventHandler( esp_gap_ble_cb_event_t event,
             {
                 if( param->adv_start_cmpl.status != ESP_OK )
                 {
-                	IotLogError( "Failed to start advertisement" );
+                    IotLogError( "Failed to start advertisement" );
                     xStatus = eBTStatusFail;
                 }
 
-                xBTBleAdapterCallbacks.pxAdvStatusCb( xStatus, ulGattServerIFhandle, true );
+                xBTBleAdapterCallbacks.pxAdvStatusCb( xStatus, 0, true );
             }
 
             break;
 
         case ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT:
+
             if( xBTBleAdapterCallbacks.pxAdvStatusCb != NULL )
             {
-            	if( param->adv_stop_cmpl.status != ESP_OK )
+                if( param->adv_stop_cmpl.status != ESP_OK )
                 {
-            		IotLogError( "Failed to stop advertisement" );
+                    IotLogError( "Failed to stop advertisement" );
                     xStatus = eBTStatusFail;
                 }
 
-                xBTBleAdapterCallbacks.pxAdvStatusCb( xStatus, ulGattServerIFhandle, false );
+                xBTBleAdapterCallbacks.pxAdvStatusCb( xStatus, 0, false );
             }
 
             break;
@@ -251,16 +260,16 @@ void prvGAPeventHandler( esp_gap_ble_cb_event_t event,
 
         case ESP_GAP_BLE_REMOVE_BOND_DEV_COMPLETE_EVT:
 
-            if( xBTCallbacks.pxBondedCb != NULL )
+            if( xBTCallbacks.pxPairingStateChangedCb != NULL )
             {
-                if( param->remove_bond_dev_cmpl.status != ESP_OK )
+                if( param->remove_bond_dev_cmpl.status == ESP_OK )
                 {
-                    xStatus = eBTStatusFail;
+                    xBTCallbacks.pxPairingStateChangedCb( eBTStatusSuccess,
+                                                          ( BTBdaddr_t * ) &param->remove_bond_dev_cmpl.bd_addr,
+                                                          eBTbondStateNone,
+                                                          eBTSecLevelNoSecurity,
+                                                          0 );
                 }
-
-                xBTCallbacks.pxBondedCb( xStatus,
-                                         ( BTBdaddr_t * ) &param->remove_bond_dev_cmpl.bd_addr,
-                                         false );
             }
 
             break;
@@ -279,13 +288,6 @@ void prvGAPeventHandler( esp_gap_ble_cb_event_t event,
                 if( xProperties.bBondable == true )
                 {
                     xBondedState = eBTbondStateBonded;
-
-                    if( xBTCallbacks.pxBondedCb != NULL )
-                    {
-                        xBTCallbacks.pxBondedCb( xStatus,
-                                                 ( BTBdaddr_t * ) &param->ble_security.auth_cmpl.bd_addr,
-                                                 true );
-                    }
                 }
             }
             else
@@ -517,6 +519,8 @@ BTStatus_t prvBTManagerInit( const BTCallbacks_t * pxCallbacks )
 {
     BTStatus_t xStatus = eBTStatusSuccess;
 
+    /* Initialize BLE */
+
     if( pxCallbacks != NULL )
     {
         xBTCallbacks = *pxCallbacks;
@@ -533,12 +537,7 @@ BTStatus_t prvBTManagerInit( const BTCallbacks_t * pxCallbacks )
 
 BTStatus_t prvBtManagerCleanup()
 {
-    BTStatus_t xStatus = eBTStatusSuccess;
-
-    esp_bt_controller_mem_release( ESP_BT_MODE_BLE );
-    esp_bt_controller_mem_release( ESP_BT_MODE_BTDM );
-
-    return xStatus;
+    return eBTStatusSuccess;
 }
 
 /*-----------------------------------------------------------*/
@@ -546,13 +545,37 @@ BTStatus_t prvBtManagerCleanup()
 BTStatus_t prvBTEnable( uint8_t ucGuestMode )
 {
     BTStatus_t xStatus = eBTStatusSuccess;
+    esp_err_t xRet = ESP_OK;
+    esp_bt_controller_config_t xBtCfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
 
-    if( esp_bt_controller_get_status() != ESP_BT_CONTROLLER_STATUS_ENABLED )
+    xRet = esp_bt_controller_init( &xBtCfg );
+
+    if( xRet == ESP_OK )
     {
-        if( esp_bt_controller_enable( ESP_BT_MODE_BLE ) != ESP_OK )
-        {
-            xStatus = eBTStatusFail;
-        }
+        xRet = esp_bt_controller_enable( ESP_BT_MODE_BLE );
+    }
+    else
+    {
+        configPRINTF( ( "Failed to initialize bt controller, err = %d.\n", xRet ) );
+    }
+
+    if( xRet == ESP_OK )
+    {
+        xRet = esp_bluedroid_init();
+    }
+    else
+    {
+        configPRINTF( ( "Failed to initialize bluedroid stack, err = %d.\n", xRet ) );
+    }
+
+    if( xRet == ESP_OK )
+    {
+        xRet = esp_bluedroid_enable();
+    }
+
+    if( xRet != ESP_OK )
+    {
+        xStatus = eBTStatusFail;
     }
 
     /** If status is ok and callback is set, trigger the callback.
@@ -571,13 +594,34 @@ BTStatus_t prvBTEnable( uint8_t ucGuestMode )
 BTStatus_t prvBTDisable()
 {
     BTStatus_t xStatus = eBTStatusSuccess;
+    esp_err_t xRet = ESP_OK;
 
-    if( esp_bt_controller_get_status() != ESP_BT_CONTROLLER_STATUS_ENABLED )
+    if( esp_bluedroid_get_status() == ESP_BLUEDROID_STATUS_ENABLED )
     {
-        if( esp_bt_controller_disable() != ESP_OK )
+        xRet = esp_bluedroid_disable();
+    }
+
+    if( xRet == ESP_OK )
+    {
+        xRet = esp_bluedroid_deinit();
+    }
+
+    if( xRet == ESP_OK )
+    {
+        if( esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED )
         {
-            xStatus = eBTStatusFail;
+            xRet = esp_bt_controller_disable();
         }
+    }
+
+    if( xRet == ESP_OK )
+    {
+        xRet = esp_bt_controller_deinit();
+    }
+
+    if( xRet != ESP_OK )
+    {
+        xStatus = eBTStatusFail;
     }
 
     /** If status is ok and callback is set, trigger the callback.
@@ -623,7 +667,7 @@ BTStatus_t prvGetBondableDeviceList( void )
                 memcpy( &( ( BTBdaddr_t * ) xBondedDevices.pvVal )[ usIndex ], &pxESPDevlist[ usIndex ].bd_addr, sizeof( BTBdaddr_t ) );
             }
 
-            xBondedDevices.xLen = usNbDevices;
+            xBondedDevices.xLen = usNbDevices * sizeof( BTBdaddr_t );
             xBondedDevices.xType = eBTpropertyAdapterBondedDevices;
 
             xBTCallbacks.pxAdapterPropertiesCb( eBTStatusSuccess, 1, &xBondedDevices );
@@ -663,7 +707,11 @@ BTStatus_t prvBTGetDeviceProperty( BTPropertyType_t xType )
                 break;
 
             case eBTpropertyBdname:
-                xStatus = eBTStatusUnsupported;
+                xReturnedProperty.xLen = strlen( bleDeviceName );
+                xReturnedProperty.xType = eBTpropertyBdname;
+                xReturnedProperty.pvVal = ( void * ) bleDeviceName;
+
+                xBTCallbacks.pxAdapterPropertiesCb( eBTStatusSuccess, 1, &xReturnedProperty );
                 break;
 
             case eBTpropertyBdaddr:
@@ -716,26 +764,23 @@ BTStatus_t prvBTSetDeviceProperty( const BTProperty_t * pxProperty )
 {
     BTStatus_t xStatus = eBTStatusSuccess;
     esp_err_t xESPstatus;
-    char * pcName;
 
     switch( pxProperty->xType )
     {
         case eBTpropertyBdname:
-            pcName = IotBle_Malloc( pxProperty->xLen + 1 );
 
-            if( pcName != NULL )
+            if( pxProperty->xLen <= IOT_BLE_DEVICE_LOCAL_NAME_MAX_LENGTH )
             {
-                memcpy( pcName, pxProperty->pvVal, pxProperty->xLen );
+                memcpy( bleDeviceName, pxProperty->pvVal, pxProperty->xLen );
                 /* Add NULL termination for name string */
-                pcName[ pxProperty->xLen ] = '\0';
-                xESPstatus = esp_ble_gap_set_device_name( pcName );
+                bleDeviceName[ pxProperty->xLen ] = '\0';
+                xESPstatus = esp_ble_gap_set_device_name( bleDeviceName );
 
                 if( xESPstatus != ESP_OK )
                 {
+                    bleDeviceName[0] = '\0';
                     xStatus = eBTStatusFail;
                 }
-
-                IotBle_Free( pcName );
             }
             else
             {

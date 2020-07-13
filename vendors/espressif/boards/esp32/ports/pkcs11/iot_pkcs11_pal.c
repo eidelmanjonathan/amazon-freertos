@@ -1,7 +1,7 @@
 // Copyright 2018 Espressif Systems (Shanghai) PTE LTD
 //
-// Amazon FreeRTOS PKCS #11 PAL for ESP32-DevKitC ESP-WROVER-KIT V1.0.3
-// Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+// FreeRTOS PKCS #11 PAL for ESP32-DevKitC ESP-WROVER-KIT V1.0.3
+// Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,14 +36,14 @@
 #include "esp_flash_encrypt.h"
 #include "nvs_flash.h"
 
-#define NVS_PART_NAME "storage"
-#define NAMESPACE "creds"
+#define NVS_PART_NAME                             pkcs11configSTORAGE_PARTITION
+#define NAMESPACE                                 pkcs11configSTORAGE_NS
 static const char *TAG = "PKCS11";
 
-#define pkcsFLASH_PARTITION                      "storage"
 #define pkcs11palFILE_NAME_CLIENT_CERTIFICATE    "P11_Cert"
 #define pkcs11palFILE_NAME_KEY                   "P11_Key"
 #define pkcs11palFILE_CODE_SIGN_PUBLIC_KEY       "P11_CSK"
+#define pkcs11palFILE_JITP_CERTIFICATE           "P11_JITP"
 
 enum eObjectHandles
 {
@@ -51,7 +51,8 @@ enum eObjectHandles
     eAwsDevicePrivateKey = 1,
     eAwsDevicePublicKey,
     eAwsDeviceCertificate,
-    eAwsCodeSigningKey
+    eAwsCodeSigningKey,
+    eAwsJITPCertificate
 };
 /*-----------------------------------------------------------*/
 
@@ -86,6 +87,7 @@ static void initialize_nvs_partition()
 
         esp_err_t ret = nvs_flash_secure_init_partition(NVS_PART_NAME, &cfg);
         if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+            ESP_LOGW(TAG, "Error initialising the NVS partition [%d]. Erasing the partition.", ret);
             ESP_ERROR_CHECK(nvs_flash_erase_partition(NVS_PART_NAME));
             ret = nvs_flash_secure_init_partition(NVS_PART_NAME, &cfg);
         }
@@ -94,6 +96,7 @@ static void initialize_nvs_partition()
 #endif // CONFIG_NVS_ENCRYPTION
         esp_err_t ret = nvs_flash_init_partition(NVS_PART_NAME);
         if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+            ESP_LOGW(TAG, "Error initialising the NVS partition [%d]. Erasing the partition.", ret);
             ESP_ERROR_CHECK(nvs_flash_erase_partition(NVS_PART_NAME));
             ret = nvs_flash_init_partition(NVS_PART_NAME);
         }
@@ -143,12 +146,24 @@ void prvLabelToFilenameHandle( uint8_t * pcLabel,
             *pcFileName = pkcs11palFILE_CODE_SIGN_PUBLIC_KEY;
             *pHandle = eAwsCodeSigningKey;
         }
+        else if( 0 == memcmp( pcLabel,
+                              pkcs11configLABEL_JITP_CERTIFICATE,
+                              strlen( (char*)pkcs11configLABEL_JITP_CERTIFICATE ) ) )
+        {
+            *pcFileName = pkcs11palFILE_JITP_CERTIFICATE;
+            *pHandle = eAwsJITPCertificate;
+        }
         else
         {
             *pcFileName = NULL;
             *pHandle = eInvalidHandle;
         }
     }
+}
+
+CK_RV PKCS11_PAL_Initialize( void )
+{
+    return CKR_OK;
 }
 
 /**
@@ -163,8 +178,8 @@ void prvLabelToFilenameHandle( uint8_t * pcLabel,
  * @return The file handle of the object that was stored.
  */
 CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
-                                        uint8_t * pucData,
-                                        uint32_t ulDataSize )
+                                        CK_BYTE_PTR pucData,
+                                        CK_ULONG ulDataSize )
 {
     initialize_nvs_partition();
 
@@ -176,7 +191,7 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
                               &pcFileName,
                               &xHandle );
 
-    ESP_LOGD(TAG, "Writing file %s, %d bytes", pcFileName, ulDataSize);
+    ESP_LOGD(TAG, "Writing file %s, %d bytes", ( char * ) pcFileName, ( uint32_t ) ulDataSize);
     nvs_handle handle;
     esp_err_t err = nvs_open_from_partition(NVS_PART_NAME, NAMESPACE, NVS_READWRITE, &handle);
     if (err != ESP_OK) {
@@ -184,7 +199,7 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
         return eInvalidHandle;
     }
 
-    err = nvs_set_blob(handle, pcFileName, pucData, ulDataSize);
+    err = nvs_set_blob(handle, pcFileName, ( char * ) pucData, ( uint32_t ) ulDataSize);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "failed nvs set blob %d", err);
         nvs_close(handle);
@@ -208,8 +223,8 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
  * @return The object handle if operation was successful.
  * Returns eInvalidHandle if unsuccessful.
  */
-CK_OBJECT_HANDLE PKCS11_PAL_FindObject( uint8_t * pcLabel,
-                                        uint8_t usLength )
+CK_OBJECT_HANDLE PKCS11_PAL_FindObject( CK_BYTE_PTR pxLabel,
+                                        CK_ULONG usLength )
 {
     CK_OBJECT_HANDLE xHandle = eInvalidHandle;
     char * pcFileName = NULL;
@@ -217,7 +232,7 @@ CK_OBJECT_HANDLE PKCS11_PAL_FindObject( uint8_t * pcLabel,
     initialize_nvs_partition();
 
     /* Translate from the PKCS#11 label to local storage file name. */
-    prvLabelToFilenameHandle( pcLabel,
+    prvLabelToFilenameHandle( pxLabel,
                               &pcFileName,
                               &xHandle );
 
@@ -270,9 +285,9 @@ CK_OBJECT_HANDLE PKCS11_PAL_FindObject( uint8_t * pcLabel,
  * error.
  */
 CK_RV PKCS11_PAL_GetObjectValue( CK_OBJECT_HANDLE xHandle,
-                                 uint8_t ** ppucData,
-                                 uint32_t * pulDataSize,
-                                 CK_BBOOL * pIsPrivate )
+                                      CK_BYTE_PTR * ppucData,
+                                      CK_ULONG_PTR pulDataSize,
+                                      CK_BBOOL * pIsPrivate )
 {
     initialize_nvs_partition();
 
@@ -298,6 +313,11 @@ CK_RV PKCS11_PAL_GetObjectValue( CK_OBJECT_HANDLE xHandle,
     else if( xHandle == eAwsCodeSigningKey )
     {
         pcFileName = pkcs11palFILE_CODE_SIGN_PUBLIC_KEY;
+        *pIsPrivate = CK_FALSE;
+    }
+    else if( xHandle == eAwsJITPCertificate )
+    {
+        pcFileName = pkcs11palFILE_JITP_CERTIFICATE;
         *pIsPrivate = CK_FALSE;
     }
     else
@@ -356,8 +376,8 @@ done:
  * @param[in] ulDataSize    The length of the buffer to free.
  *                          (*pulDataSize from PKCS11_PAL_GetObjectValue())
  */
-void PKCS11_PAL_GetObjectValueCleanup( uint8_t * pucData,
-                                       uint32_t ulDataSize )
+void PKCS11_PAL_GetObjectValueCleanup( CK_BYTE_PTR pucData,
+                                       CK_ULONG ulDataSize )
 {
     /* Unused parameters. */
     ( void ) ulDataSize;

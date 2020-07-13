@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS PKCS #11 PAL for Renesas Starter Kit+ for RX65N-2MB V1.0.0
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS PKCS #11 PAL for Renesas Starter Kit+ for RX65N-2MB V1.0.0
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -47,7 +47,7 @@
  * @brief Device specific helpers for PKCS11 Interface.
  */
 
-/* Amazon FreeRTOS Includes. */
+/* FreeRTOS Includes. */
 #include "iot_pkcs11.h"
 #include "iot_pkcs11_config.h"
 #include "FreeRTOS.h"
@@ -114,6 +114,8 @@ typedef struct _pkcs_data
 #error "iot_pkcs11_pal.c does not support your MCU"
 #endif
 
+#define PKCS11_PAL_DEBUG_PRINT( X )      /* configPRINTF( X ) */
+
 typedef struct _pkcs_storage_control_block_sub
 {
     uint8_t local_storage[((FLASH_DF_BLOCK_SIZE * FLASH_NUM_BLOCKS_DF) / 4) - (sizeof(PKCS_DATA) * PKCS_OBJECT_HANDLES_NUM) - PKCS_SHA256_LENGTH]; /* RX65N case: 8KB */
@@ -160,9 +162,8 @@ static void update_dataflash_data_from_image(void);
 static void update_dataflash_data_mirror_from_image(void);
 static void check_dataflash_area(uint32_t retry_counter);
 
-extern CK_RV prvMbedTLS_Initialize( void );
 
-CK_RV C_Initialize( CK_VOID_PTR pvInitArgs )
+void PKCS11_PAL_Initialize( void )
 {
     CK_RV xResult = CKR_OK;
 
@@ -183,8 +184,6 @@ CK_RV C_Initialize( CK_VOID_PTR pvInitArgs )
 
     R_FLASH_Close();
 
-    xResult = prvMbedTLS_Initialize();
-
     return xResult;
 }
 
@@ -200,8 +199,8 @@ CK_RV C_Initialize( CK_VOID_PTR pvInitArgs )
 * @return The file handle of the object that was stored.
 */
 CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
-                                        uint8_t * pucData,
-                                        uint32_t ulDataSize )
+                                        CK_BYTE_PTR pucData,
+                                        CK_ULONG ulDataSize )
 {
     CK_OBJECT_HANDLE xHandle = eInvalidHandle;
     int i;
@@ -332,15 +331,15 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
 * Port-specific object handle retrieval.
 *
 *
-* @param[in] pLabel         Pointer to the label of the object
+* @param[in] pxLabel         Pointer to the label of the object
 *                           who's handle should be found.
 * @param[in] usLength       The length of the label, in bytes.
 *
 * @return The object handle if operation was successful.
 * Returns eInvalidHandle if unsuccessful.
 */
-CK_OBJECT_HANDLE PKCS11_PAL_FindObject( uint8_t * pLabel,
-                                        uint8_t usLength )
+CK_OBJECT_HANDLE PKCS11_PAL_FindObject( CK_BYTE_PTR pxLabel,
+                                        CK_ULONG usLength )
 {
     /* Avoid compiler warnings about unused variables. */
     R_INTERNAL_NOT_USED(usLength);
@@ -350,7 +349,7 @@ CK_OBJECT_HANDLE PKCS11_PAL_FindObject( uint8_t * pLabel,
 
     for(i = 1; i < PKCS_OBJECT_HANDLES_NUM; i++)
     {
-        if(!strcmp((char *)&object_handle_dictionary[i], (char *)pLabel))
+        if(!strcmp((char *)&object_handle_dictionary[i], (char *)pxLabel))
         {
             if(pkcs_control_block_data_image.data.pkcs_data[i].status == PKCS_DATA_STATUS_REGISTERED)
             {
@@ -386,9 +385,9 @@ CK_OBJECT_HANDLE PKCS11_PAL_FindObject( uint8_t * pLabel,
 * error.
 */
 CK_RV PKCS11_PAL_GetObjectValue( CK_OBJECT_HANDLE xHandle,
-                                 uint8_t ** ppucData,
-                                 uint32_t * pulDataSize,
-                                 CK_BBOOL * pIsPrivate )
+                                      CK_BYTE_PTR * ppucData,
+                                      CK_ULONG_PTR pulDataSize,
+                                      CK_BBOOL * pIsPrivate )
 {
     CK_RV xReturn = CKR_FUNCTION_FAILED;
     CK_OBJECT_HANDLE xHandleStorage = xHandle;
@@ -429,8 +428,8 @@ CK_RV PKCS11_PAL_GetObjectValue( CK_OBJECT_HANDLE xHandle,
 * @param[in] ulDataSize    The length of the buffer to free.
 *                          (*pulDataSize from PKCS11_PAL_GetObjectValue())
 */
-void PKCS11_PAL_GetObjectValueCleanup( uint8_t * pucData,
-                                       uint32_t ulDataSize )
+void PKCS11_PAL_GetObjectValueCleanup( CK_BYTE_PTR pucData,
+                                       CK_ULONG ulDataSize )
 {
     /* Avoid compiler warnings about unused variables. */
     R_INTERNAL_NOT_USED(pucData);
@@ -450,13 +449,13 @@ static void update_dataflash_data_from_image(void)
         required_dataflash_block_num++;
     }
 
-    configPRINTF(("erase dataflash(main)...\r\n"));
+    PKCS11_PAL_DEBUG_PRINT(("erase dataflash(main)...\r\n"));
     R_BSP_InterruptsDisable();
     flash_error_code = R_FLASH_Erase((flash_block_address_t)&pkcs_control_block_data, required_dataflash_block_num);
     R_BSP_InterruptsEnable();
     if(FLASH_SUCCESS == flash_error_code)
     {
-        configPRINTF(("OK\r\n"));
+        PKCS11_PAL_DEBUG_PRINT(("OK\r\n"));
     }
     else
     {
@@ -464,13 +463,13 @@ static void update_dataflash_data_from_image(void)
         configPRINTF(("R_FLASH_Erase() returns error code = %d.\r\n", flash_error_code));
     }
 
-    configPRINTF(("write dataflash(main)...\r\n"));
+    PKCS11_PAL_DEBUG_PRINT(("write dataflash(main)...\r\n"));
     R_BSP_InterruptsDisable();
     flash_error_code = R_FLASH_Write((flash_block_address_t)&pkcs_control_block_data_image, (flash_block_address_t)&pkcs_control_block_data, FLASH_DF_BLOCK_SIZE * required_dataflash_block_num);
     R_BSP_InterruptsEnable();
     if(FLASH_SUCCESS == flash_error_code)
     {
-        configPRINTF(("OK\r\n"));
+        PKCS11_PAL_DEBUG_PRINT(("OK\r\n"));
     }
     else
     {
@@ -492,13 +491,13 @@ static void update_dataflash_data_mirror_from_image(void)
         required_dataflash_block_num++;
     }
 
-    configPRINTF(("erase dataflash(mirror)...\r\n"));
+    PKCS11_PAL_DEBUG_PRINT(("erase dataflash(mirror)...\r\n"));
     R_BSP_InterruptsDisable();
     flash_error_code = R_FLASH_Erase((flash_block_address_t)&pkcs_control_block_data_mirror, required_dataflash_block_num);
     R_BSP_InterruptsEnable();
     if(FLASH_SUCCESS == flash_error_code)
     {
-        configPRINTF(("OK\r\n"));
+        PKCS11_PAL_DEBUG_PRINT(("OK\r\n"));
     }
     else
     {
@@ -507,13 +506,13 @@ static void update_dataflash_data_mirror_from_image(void)
         return;
     }
 
-    configPRINTF(("write dataflash(mirror)...\r\n"));
+    PKCS11_PAL_DEBUG_PRINT(("write dataflash(mirror)...\r\n"));
     R_BSP_InterruptsDisable();
     flash_error_code = R_FLASH_Write((flash_block_address_t)&pkcs_control_block_data_image, (flash_block_address_t)&pkcs_control_block_data_mirror, FLASH_DF_BLOCK_SIZE * required_dataflash_block_num);
     R_BSP_InterruptsEnable();
     if(FLASH_SUCCESS == flash_error_code)
     {
-        configPRINTF(("OK\r\n"));
+        PKCS11_PAL_DEBUG_PRINT(("OK\r\n"));
     }
     else
     {
@@ -542,27 +541,27 @@ static void check_dataflash_area(uint32_t retry_counter)
 
     if(retry_counter)
     {
-        configPRINTF(("recover retry count = %d.\r\n", retry_counter));
+        PKCS11_PAL_DEBUG_PRINT(("recover retry count = %d.\r\n", retry_counter));
         if(retry_counter == MAX_CHECK_DATAFLASH_AREA_RETRY_COUNT)
         {
             configPRINTF(("retry over the limit.\r\n"));
             while(1);
         }
     }
-    configPRINTF(("data flash(main) hash check...\r\n"));
+    PKCS11_PAL_DEBUG_PRINT(("data flash(main) hash check...\r\n"));
     mbedtls_sha256_starts_ret(&ctx, 0); /* 0 means SHA256 context */
     mbedtls_sha256_update_ret(&ctx, (unsigned char *)&pkcs_control_block_data.data, sizeof(pkcs_control_block_data.data));
     mbedtls_sha256_finish_ret(&ctx, hash_sha256);
     if(!memcmp(pkcs_control_block_data.hash_sha256, hash_sha256, sizeof(hash_sha256)))
     {
-        configPRINTF(("OK\r\n"));
-        configPRINTF(("data flash(mirror) hash check...\r\n"));
+        PKCS11_PAL_DEBUG_PRINT(("OK\r\n"));
+        PKCS11_PAL_DEBUG_PRINT(("data flash(mirror) hash check...\r\n"));
         mbedtls_sha256_starts_ret(&ctx, 0); /* 0 means SHA256 context */
         mbedtls_sha256_update_ret(&ctx, (unsigned char *)&pkcs_control_block_data_mirror.data, sizeof(pkcs_control_block_data_mirror.data));
         mbedtls_sha256_finish_ret(&ctx, hash_sha256);
         if(!memcmp(pkcs_control_block_data_mirror.hash_sha256, hash_sha256, sizeof(hash_sha256)))
         {
-            configPRINTF(("OK\r\n"));
+            PKCS11_PAL_DEBUG_PRINT(("OK\r\n"));
         }
         else
         {
@@ -575,15 +574,15 @@ static void check_dataflash_area(uint32_t retry_counter)
     }
     else
     {
-        configPRINTF(("NG\r\n"));
-        configPRINTF(("data flash(mirror) hash check...\r\n"));
+        PKCS11_PAL_DEBUG_PRINT(("NG\r\n"));
+        PKCS11_PAL_DEBUG_PRINT(("data flash(mirror) hash check...\r\n"));
         mbedtls_sha256_starts_ret(&ctx, 0); /* 0 means SHA256 context */
         mbedtls_sha256_update_ret(&ctx, (unsigned char *)&pkcs_control_block_data_mirror.data, sizeof(pkcs_control_block_data_mirror.data));
         mbedtls_sha256_finish_ret(&ctx, hash_sha256);
         if(!memcmp(pkcs_control_block_data_mirror.hash_sha256, hash_sha256, sizeof(hash_sha256)))
         {
-            configPRINTF(("OK\r\n"));
-            configPRINTF(("recover main from mirror.\r\n"));
+            PKCS11_PAL_DEBUG_PRINT(("OK\r\n"));
+            PKCS11_PAL_DEBUG_PRINT(("recover main from mirror.\r\n"));
             memcpy(&pkcs_control_block_data_image, (void *)&pkcs_control_block_data_mirror, sizeof(pkcs_control_block_data_mirror));
             update_dataflash_data_from_image();
             check_dataflash_area(retry_counter + 1);

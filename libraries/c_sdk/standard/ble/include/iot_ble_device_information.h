@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS BLE V2.0.0
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS BLE V2.0.1
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -25,7 +25,7 @@
 
 /**
  * @file iot_ble_device_information.h
- * @brief GATT service which exposes Amazon FreeRTOS device information
+ * @brief GATT service which exposes FreeRTOS device information
  */
 #ifndef IOT_BLE_DEVICE_INFORMATION_H_
 #define IOT_BLE_DEVICE_INFORMATION_H_
@@ -46,12 +46,27 @@
  */
 
 /**
- * @brief Creates and starts Amazon FreeRTOS device information service
+ * @brief Creates and starts FreeRTOS device information service
  *
- * @return pdTRUE if the service is initialized successfully, pdFALSE otherwise
+ * @return true if the service is initialized successfully, false otherwise
  */
 /* @[declare_iotbledeviceinfo_init] */
 bool IotBleDeviceInfo_Init( void );
 /* @[declare_iotbledeviceinfo_init] */
+
+/**
+ * @function_page{IotBleDeviceInfo_Cleanup,iotbledeviceinfo,cleanup}
+ * @function_snippet{iotbledeviceinfo,cleanup,this}
+ * @copydoc IotBleDeviceInfo_Cleanup
+ */
+
+/**
+ * @brief Cleanup device information service.
+ *
+ * @return true If the cleanup is successful false otherwise.
+ */
+/* @[declare_iotbledeviceinfo_cleanup] */
+bool IotBleDeviceInfo_Cleanup( void );
+/* @[declare_iotbledeviceinfo_cleanup] */
 
 #endif /* IOT_BLE_DEVICE_INFORMATION_H_ */

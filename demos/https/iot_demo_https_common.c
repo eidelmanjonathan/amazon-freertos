@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS V201908.00
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V202002.00
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -36,7 +36,7 @@
 /* Common header. */
 #include "iot_demo_https_common.h"
 
-/* Amazon FreeRTOS includes. */
+/* FreeRTOS includes. */
 #include "iot_https_utils.h"
 #include "iot_demo_logging.h"
 
@@ -86,7 +86,7 @@ int _IotHttpsDemo_GetS3ObjectFileSize( uint32_t * pFileSize,
      * IotHttpsClient_InitializeRequest(). */
     IotHttpsRequestHandle_t fileSizeReqHandle = NULL;
 
-    /* Handle identifying the HTTP response. This is valid after the reponse has been received with
+    /* Handle identifying the HTTP response. This is valid after the response has been received with
      * IotHttpsClient_SendSync(). */
     IotHttpsResponseHandle_t fileSizeRespHandle = NULL;
 

@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS PKCS #11 PAL for Cypress CYW954907AEVAL1F development kit V1.0.1
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS PKCS #11 PAL for Cypress CYW954907AEVAL1F development kit V1.0.1
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Copyright 2019, Cypress Semiconductor Corporation or a subsidiary of
  * Cypress Semiconductor Corporation. All Rights Reserved.
@@ -39,7 +39,7 @@
  * @brief Device specific helpers for PKCS11 Interface.
  */
 
-/* Amazon FreeRTOS Includes. */
+/* FreeRTOS Includes. */
 #include "iot_pkcs11.h"
 #include "iot_pkcs11_config.h"
 #include "FreeRTOS.h"
@@ -63,6 +63,11 @@ enum eObjectHandles
     eAwsDeviceCertificate,
     eAwsCodeSigningKey
 };
+
+CK_RV PKCS11_PAL_GetObjectValue( CK_OBJECT_HANDLE xHandle,
+                                      CK_BYTE_PTR * ppucData,
+                                      CK_ULONG_PTR pulDataSize,
+                                      CK_BBOOL * pIsPrivate );
 
 /* Converts a label to its respective filename and handle. */
 void prvLabelToFilenameHandle( uint8_t * pcLabel,
@@ -108,6 +113,11 @@ void prvLabelToFilenameHandle( uint8_t * pcLabel,
     }
 }
 
+CK_RV PKCS11_PAL_Initialize( void )
+{
+    return CKR_OK;
+}
+
 /**
 * @brief Writes a file to local storage.
 *
@@ -120,8 +130,8 @@ void prvLabelToFilenameHandle( uint8_t * pcLabel,
 * @return The file handle of the object that was stored.
 */
 CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
-    uint8_t * pucData,
-    uint32_t ulDataSize )
+                                        CK_BYTE_PTR pucData,
+                                        CK_ULONG ulDataSize )
 {
     wiced_result_t result = WICED_SUCCESS;
     CK_OBJECT_HANDLE xHandle = eInvalidHandle;
@@ -180,27 +190,43 @@ CK_OBJECT_HANDLE PKCS11_PAL_SaveObject( CK_ATTRIBUTE_PTR pxLabel,
     return xHandle;
 }
 
+
 /**
 * @brief Translates a PKCS #11 label into an object handle.
 *
 * Port-specific object handle retrieval.
 *
 *
-* @param[in] pLabel         Pointer to the label of the object
+* @param[in] pxLabel         Pointer to the label of the object
 *                           who's handle should be found.
 * @param[in] usLength       The length of the label, in bytes.
 *
 * @return The object handle if operation was successful.
 * Returns eInvalidHandle if unsuccessful.
 */
-CK_OBJECT_HANDLE PKCS11_PAL_FindObject( uint8_t * pLabel,
-    uint8_t usLength )
+CK_OBJECT_HANDLE PKCS11_PAL_FindObject( CK_BYTE_PTR pxLabel,
+                                        CK_ULONG usLength )
 {
     CK_OBJECT_HANDLE xHandle = eInvalidHandle;
     char * pcFileName = NULL;
+    uint8_t * pucData = NULL;
+    uint32_t xDataSize = 0;
+    CK_BBOOL xIsPrivate = CK_FALSE;
+    CK_RV xResult = CKR_OK;
 
     /* Translate from the PKCS#11 label to local storage file name. */
-    prvLabelToFilenameHandle( pLabel, &pcFileName, &xHandle );
+    prvLabelToFilenameHandle( pxLabel, &pcFileName, &xHandle );
+
+    if (xHandle != CK_INVALID_HANDLE)
+    {
+        /* Attempt to read the object to see if something valid is there. */
+        xResult = PKCS11_PAL_GetObjectValue(xHandle, &pucData, &xDataSize, &xIsPrivate );
+
+        if (xResult != CK_INVALID_HANDLE)
+        {
+            xHandle = 0;
+        }
+    }
 
     return xHandle;
 }
@@ -229,9 +255,9 @@ CK_OBJECT_HANDLE PKCS11_PAL_FindObject( uint8_t * pLabel,
  * error.
  */
 CK_RV PKCS11_PAL_GetObjectValue( CK_OBJECT_HANDLE xHandle,
-    uint8_t ** ppucData,
-    uint32_t * pulDataSize,
-    CK_BBOOL * pIsPrivate )
+                                      CK_BYTE_PTR * ppucData,
+                                      CK_ULONG_PTR pulDataSize,
+                                      CK_BBOOL * pIsPrivate )
 {
     uint32_t len=0;
     wiced_result_t result = WICED_SUCCESS;
@@ -320,8 +346,8 @@ CK_RV PKCS11_PAL_GetObjectValue( CK_OBJECT_HANDLE xHandle,
 * @param[in] ulDataSize    The length of the buffer to free.
 *                          (*pulDataSize from PKCS11_PAL_GetObjectValue())
 */
-void PKCS11_PAL_GetObjectValueCleanup( uint8_t * pucData,
-    uint32_t ulDataSize )
+void PKCS11_PAL_GetObjectValueCleanup( CK_BYTE_PTR pucData,
+                                       CK_ULONG ulDataSize )
 {
     if( NULL != pucData )
     {

@@ -1,6 +1,6 @@
 """
-Amazon FreeRTOS
-Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+FreeRTOS
+Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,20 +23,15 @@ http://aws.amazon.com/freertos
 http://www.FreeRTOS.org
 
 """
-from .aws_ota_test_case import *
-from .aws_ota_aws_agent import *
+from .aws_ota_test_case import OtaTestCase
 
-class OtaTestSameVersion( OtaTestCase ):
-    NAME = 'OtaTestSameVersion'
-    def __init__(self, boardConfig, otaProject, otaAwsAgent, flashComm):
-        super(OtaTestSameVersion, self).__init__(
-            OtaTestSameVersion.NAME,
-            False,
-            boardConfig,
-            otaProject,
-            otaAwsAgent,
-            flashComm
-        )
+
+class OtaTestSameVersion(OtaTestCase):
+    """
+    This test verifies that device will reject an update if the update is same version as current.
+    """
+
+    is_positive = False
 
     def run(self):
         # Keep the same version of the image from setup() called in the superclass.
@@ -44,5 +39,5 @@ class OtaTestSameVersion( OtaTestCase ):
         # Build the OTA image.
         self._otaProject.buildProject()
         # Start an OTA Update.
-        otaUpdateId = self._otaAwsAgent.quickCreateOtaUpdate(self._otaConfig)
+        otaUpdateId = self._otaAwsAgent.quickCreateOtaUpdate(self._otaConfig, [self._protocol])
         return self.getTestResultAfterOtaUpdateCompletion(otaUpdateId)

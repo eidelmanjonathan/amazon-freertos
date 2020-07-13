@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS V1.4.8
- * Copyright (C) 2019 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS V1.4.8
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -73,16 +73,16 @@
 
 /**
  * @brief The maximum number of data blocks requested from OTA streaming service.
- * 
- *  This configuration parameter is sent with data requests and represents the maximum number of 
- *  data blocks the service will send in response. The maximum limit for this must be calculated 
- *  from the maximum data response limit (128 KB from service) divided by the block size. 
+ *
+ *  This configuration parameter is sent with data requests and represents the maximum number of
+ *  data blocks the service will send in response. The maximum limit for this must be calculated
+ *  from the maximum data response limit (128 KB from service) divided by the block size.
  *  For example if block size is set as 1 KB then the maximum number of data blocks that we can
- *  request is 128/1 = 128 blocks. Configure this parameter to this maximum limit or lower based on 
- *  how many data blocks response is expected for each data requests. 
+ *  request is 128/1 = 128 blocks. Configure this parameter to this maximum limit or lower based on
+ *  how many data blocks response is expected for each data requests.
  *  Please note that this must be set larger than zero.
- *  
+ *
  */
- #define otaconfigMAX_NUM_BLOCKS_REQUEST        128U
+#define otaconfigMAX_NUM_BLOCKS_REQUEST         128U
 
 #endif /* _AWS_OTA_AGENT_CONFIG_H_ */

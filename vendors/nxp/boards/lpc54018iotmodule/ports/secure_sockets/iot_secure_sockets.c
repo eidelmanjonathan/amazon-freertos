@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS Secure Sockets for NXP54018_IoT_Module V1.0.0 Beta 4
- * Copyright (C) 2017 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS Secure Sockets for NXP54018_IoT_Module V1.0.0 Beta 4
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -95,6 +95,8 @@ typedef struct SSOCKETContext
     uint32_t ulServerCertificateLength;
     uint32_t ulState;
 } SSOCKETContext_t, * SSOCKETContextPtr_t;
+
+#define SOCKETS_INVALID_CONTEXT		( ( SSOCKETContextPtr_t ) ~0U )
 
 /*
  * Helper routines.
@@ -221,7 +223,7 @@ int32_t SOCKETS_Close( Socket_t xSocket )
     SSOCKETContextPtr_t pxContext = ( SSOCKETContextPtr_t ) xSocket;
     int32_t lStatus = SOCKETS_ERROR_NONE;
 
-    if( ( NULL != pxContext ) && ( SOCKETS_INVALID_SOCKET != pxContext ) )
+    if( ( NULL != pxContext ) && ( SOCKETS_INVALID_CONTEXT != pxContext ) )
     {
         pxContext->ulState = 0;
 
@@ -261,7 +263,7 @@ int32_t SOCKETS_Connect( Socket_t xSocket,
     TLSParams_t xTLSParams = { 0 };
     SOCKADDR_T xTempAddress = { 0 };
 
-    if( ( SOCKETS_INVALID_SOCKET != pxContext ) && ( NULL != pxAddress ) && WIFI_IsConnected())
+    if( ( SOCKETS_INVALID_CONTEXT != pxContext ) && ( NULL != pxAddress ) && WIFI_IsConnected())
     {
         /* Connect the wrapped socket. */
 
@@ -392,7 +394,7 @@ int32_t SOCKETS_Send( Socket_t xSocket,
     int32_t lWritten = 0, lWrittenPerLoop = 0;
     SSOCKETContextPtr_t pxContext = ( SSOCKETContextPtr_t ) xSocket;
 
-    if( ( SOCKETS_INVALID_SOCKET != pxContext ) &&
+    if( ( SOCKETS_INVALID_CONTEXT != pxContext ) &&
         ( NULL != pvBuffer ) &&
         ( ( nxpsecuresocketsSOCKET_WRITE_CLOSED_FLAG & pxContext->xShutdownFlags ) == 0UL ) &&
         ( pxContext->ulState & ( nxpsecuresocketsSOCKET_CONNECTED_FLAG ) )
@@ -484,7 +486,7 @@ int32_t SOCKETS_SetSockOpt( Socket_t xSocket,
     TickType_t xTimeout;
     SSOCKETContextPtr_t pxContext = ( SSOCKETContextPtr_t ) xSocket;
 
-    if( ( NULL != pxContext ) && ( SOCKETS_INVALID_SOCKET != pxContext ) )
+    if( ( NULL != pxContext ) && ( SOCKETS_INVALID_CONTEXT != pxContext ) )
     {
         switch( lOptionName )
         {
@@ -630,7 +632,7 @@ int32_t SOCKETS_Shutdown( Socket_t xSocket,
     int32_t lRetVal = SOCKETS_SOCKET_ERROR;
 
     /* Ensure that a valid socket was passed. */
-    if( ( SOCKETS_INVALID_SOCKET != pxSecureSocket ) )
+    if( ( SOCKETS_INVALID_CONTEXT != pxSecureSocket ) )
     {
         switch( ulHow )
         {
@@ -719,10 +721,10 @@ Socket_t SOCKETS_Socket( int32_t lDomain,
 
     if( lStatus != SOCKETS_ERROR_NONE )
     {
-        pxContext = SOCKETS_INVALID_SOCKET;
+        pxContext = SOCKETS_INVALID_CONTEXT;
     }
 
-    return pxContext;
+    return ( Socket_t ) pxContext;
 }
 /*-----------------------------------------------------------*/
 

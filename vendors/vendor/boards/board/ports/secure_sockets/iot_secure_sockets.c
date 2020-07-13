@@ -1,6 +1,6 @@
 /*
- * Amazon FreeRTOS Secure Socket V1.0.0
- * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ * FreeRTOS Secure Socket V1.0.0
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -132,3 +132,9 @@ uint32_t ulRand( void )
     return 0;
 }
 /*-----------------------------------------------------------*/
+
+BaseType_t xApplicationGetRandomNumber( uint32_t * pulNumber )
+{
+    *( pulNumber ) = 0uL;
+    return pdFALSE;
+}

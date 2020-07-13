@@ -1,6 +1,6 @@
 """
-Amazon FreeRTOS
-Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+FreeRTOS
+Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,20 +23,16 @@ http://aws.amazon.com/freertos
 http://www.FreeRTOS.org
 
 """
-from .aws_ota_test_case import *
-from .aws_ota_aws_agent import *
+from .aws_ota_test_case import OtaTestCase
 
-class OtaTestGreaterVersion( OtaTestCase ):
-    NAME = 'OtaTestGreaterVersion'
-    def __init__(self, boardConfig, otaProject, otaAwsAgent, flashComm):
-        super(OtaTestGreaterVersion, self).__init__(
-            OtaTestGreaterVersion.NAME,
-            True,
-            boardConfig,
-            otaProject,
-            otaAwsAgent,
-            flashComm
-        )
+
+class OtaTestGreaterVersion(OtaTestCase):
+    """
+    Happy path test for a regular OTA update. It creates an update with a newer version, device
+    should be able to update successfully.
+    """
+
+    is_positive = True
 
     def run(self):
         # Increase the version of the OTA image.
@@ -44,5 +40,5 @@ class OtaTestGreaterVersion( OtaTestCase ):
         # Build the OTA image.
         self._otaProject.buildProject()
         # Start an OTA Update.
-        otaUpdateId = self._otaAwsAgent.quickCreateOtaUpdate(self._otaConfig)
+        otaUpdateId = self._otaAwsAgent.quickCreateOtaUpdate(self._otaConfig, [self._protocol])
         return self.getTestResultAfterOtaUpdateCompletion(otaUpdateId)

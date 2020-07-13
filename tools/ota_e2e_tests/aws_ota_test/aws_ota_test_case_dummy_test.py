@@ -1,6 +1,6 @@
 """
-Amazon FreeRTOS
-Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+FreeRTOS
+Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -24,23 +24,14 @@ http://www.FreeRTOS.org
 
 """
 
-from .aws_ota_test_case import *
-from .aws_ota_aws_agent import *
+from .aws_ota_test_case import OtaTestCase
 from .aws_ota_test_result import OtaTestResult
 
-class OtaTestDummyTest( OtaTestCase ):
+
+class OtaTestDummyTest(OtaTestCase):
     """This test is for debugging code changes without waiting for projects to build.
     """
-    NAME = 'OtaTestDummyTest'
-    def __init__(self, boardConfig, otaProject, otaAwsAgent, flashComm):
-        super(OtaTestDummyTest, self).__init__(
-            OtaTestDummyTest.NAME,
-            False,
-            boardConfig,
-            otaProject,
-            otaAwsAgent,
-            flashComm
-        )
+    is_positive = False
 
     def setup(self):
         print('Ran OtaTestDummyTest::setup.')

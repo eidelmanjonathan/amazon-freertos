@@ -1,6 +1,6 @@
 """
-Amazon FreeRTOS
-Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+FreeRTOS
+Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,32 +23,28 @@ http://aws.amazon.com/freertos
 http://www.FreeRTOS.org
 
 """
-from .aws_ota_test_case import *
-from .aws_ota_aws_agent import *
-import boto3
+from .aws_ota_test_case import OtaTestCase
 import os
 
-class OtaTestIncorrectPlatform( OtaTestCase ):
-    NAME = "OtaTestIncorrectPlatform"
-    def __init__(self, boardConfig, otaProject, otaAwsAgent, flashComm):
-        super(OtaTestIncorrectPlatform, self).__init__(
-            OtaTestIncorrectPlatform.NAME,
-            False,
-            boardConfig,
-            otaProject,
-            otaAwsAgent,
-            flashComm
-        )
-        if self._otaConfig['aws_signer_platform'] == 'AmazonFreeRTOS-TI-CC3220SF':
-            self._signingType = 'FakeMCHP'
-            self._incorrectPlatform = 'AmazonFreeRTOS-Default'
+
+class OtaTestIncorrectPlatform(OtaTestCase):
+    """
+    Different hardware supports different signing and hashing algorithm. This test verifies that
+    device will fail the OTA update is it's created with non-supported algorithm.
+    """
+
+    is_positive = False
+
+    def __init__(self, positive, boardConfig, otaProject, otaAwsAgent, flashComm, protocol):
+        if boardConfig['ota_config']['aws_signer_platform'] == 'AmazonFreeRTOS-TI-CC3220SF':
             self._signingAlgorithm = 'ECDSA'
             self._hashingAlgorithm = 'SHA256'
         else:
-            self._signingType = 'IdentifyAsTI'
-            self._incorrectPlatform = 'AmazonFreeRTOS-TI-CC3220SF'
             self._signingAlgorithm = 'RSA'
             self._hashingAlgorithm = 'SHA1'
+
+        # Call base constructor.
+        super().__init__(positive, boardConfig, otaProject, otaAwsAgent, flashComm, protocol)
 
     def run(self):
         # Increase the version of the OTA image.
@@ -69,12 +65,13 @@ class OtaTestIncorrectPlatform( OtaTestCase ):
         )
         # Create a job.
         otaUpdateId = self._otaAwsAgent.createOtaUpdate(
-            deploymentFiles = [
+            protocols=[self._protocol],
+            deploymentFiles=[
                 {
                     'fileName': self._otaConfig['device_firmware_file_name'],
                     'fileVersion': '1',
                     'fileLocation': {
-                        'stream':{
+                        'stream': {
                             'streamId': streamId,
                             'fileId': 0
                         },
@@ -82,11 +79,11 @@ class OtaTestIncorrectPlatform( OtaTestCase ):
                     'codeSigning': {
                         "customCodeSigning": {
                             "signature": {
-                                "inlineDocument":"IAmVeryTrusted"
+                                "inlineDocument": "IAmVeryTrusted"
                             },
                             "certificateChain": {
-                                "certificateName":"VeryTrustworthyOrganization",
-                                "inlineDocument":"TrustUs"
+                                "certificateName": "VeryTrustworthyOrganization",
+                                "inlineDocument": "TrustUs"
                             },
                             "hashAlgorithm": self._hashingAlgorithm,
                             "signatureAlgorithm": self._signingAlgorithm
