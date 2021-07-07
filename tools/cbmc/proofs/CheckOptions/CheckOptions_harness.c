@@ -18,7 +18,7 @@
 #include "NetworkBufferManagement.h"
 #include "FreeRTOS_ARP.h"
 
-#include "cbmc.h"
+include "cbmc.h"
 
 /****************************************************************
  * Signature of function under test
